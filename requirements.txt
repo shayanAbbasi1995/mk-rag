@@ -1,9 +1,36 @@
+# Core RAG ingestion pipeline
+unstructured[md,pptx,docx,html]==0.18.11
+python-magic-bin==0.4.14 ; sys_platform == "win32"
+# pi-heif is imported unconditionally by unstructured.partition.pdf but isn't
+# part of unstructured[pdf]'s required deps; ship it here so PDFs partition
+# without dragging in the ~1 GB hi-res model stack (torch, transformers,
+# unstructured-inference). We use strategy="fast" — no models needed.
+pi-heif==0.22.0
+pdf2image==1.17.0
+pdfminer.six==20250506
+pypdf==5.9.0
+numpy==1.26.4
+protobuf==5.29.5
+python-docx==1.2.0
+python-pptx==1.0.2
+lxml==5.3.0
+markdown==3.7
+beautifulsoup4==4.12.3
+tqdm==4.66.5
+
+# Embeddings + LLM
+openai==1.55.3
+
+# Vector store
+qdrant-client==1.12.1
+
+# Config
+python-dotenv==1.0.1
+
+# Chat UI
 streamlit==1.39.0
+langchain==0.3.7
 langchain-community==0.3.5
 langchain-openai==0.2.8
 langchain-qdrant==0.2.0
 langchain-text-splitters==0.3.2
-pypdf==5.9.0
-qdrant-client==1.12.1
-python-dotenv==1.0.1
-openai==1.55.3
