@@ -6,3 +6,4 @@ langchain-qdrant
 pypdf
 qdrant-client
 python-dotenv
+openai
