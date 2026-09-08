@@ -51,28 +51,33 @@ if prompt := st.chat_input("Ask a question about the course material..."):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        docs = retriever.invoke(prompt)
-        context = "\n\n".join(
-            [f"[{d.metadata.get('source_file', 'Unknown')}]: {d.page_content}" for d in docs]
-        )
-        sources = list(set([d.metadata.get("source_file", "Unknown") for d in docs]))
+        try:
+            docs = retriever.invoke(prompt)
+            context = "\n\n".join(
+                [f"[{d.metadata.get('source_file', 'Unknown')}]: {d.page_content}" for d in docs]
+            )
+            sources = list(set([d.metadata.get("source_file", "Unknown") for d in docs]))
 
-        system_prompt = (
-            "You are a helpful teaching assistant. Answer the student's question strictly "
-            "using the context below. If the answer cannot be found in the context, say "
-            "you do not know based on the provided material. Do not fabricate answers.\n\n"
-            f"Context:\n{context}"
-        )
+            system_prompt = (
+                "You are a helpful teaching assistant. Answer the student's question strictly "
+                "using the context below. If the answer cannot be found in the context, say "
+                "you do not know based on the provided material. Do not fabricate answers.\n\n"
+                f"Context:\n{context}"
+            )
 
-        response = llm.invoke([
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt},
-        ])
+            response = llm.invoke([
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ])
 
-        reply_content = response.content
+            reply_content = response.content
 
-        if sources:
-            reply_content += f"\n\n*Referenced Material: {', '.join(sources)}*"
+            if sources:
+                reply_content += f"\n\n*Referenced Material: {', '.join(sources)}*"
 
-        st.markdown(reply_content)
-        st.session_state.messages.append({"role": "assistant", "content": reply_content})
+            st.markdown(reply_content)
+            st.session_state.messages.append({"role": "assistant", "content": reply_content})
+
+        except Exception as e:
+            st.error(f"Could not generate a response: {e}")
+            st.session_state.messages.append({"role": "assistant", "content": f"[Error: {e}]"})
