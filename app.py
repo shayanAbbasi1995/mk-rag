@@ -65,17 +65,19 @@ if prompt := st.chat_input("Ask a question about the course material..."):
                 f"Context:\n{context}"
             )
 
-            response = llm.invoke([
+            messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt},
-            ])
-
-            reply_content = response.content
+            ]
+            reply_content = st.write_stream(
+                chunk.content for chunk in llm.stream(messages)
+            )
 
             if sources:
-                reply_content += f"\n\n*Referenced Material: {', '.join(sources)}*"
+                attribution = f"\n\n*Referenced Material: {', '.join(sources)}*"
+                st.markdown(attribution)
+                reply_content += attribution
 
-            st.markdown(reply_content)
             st.session_state.messages.append({"role": "assistant", "content": reply_content})
 
         except Exception as e:

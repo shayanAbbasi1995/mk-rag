@@ -1,8 +1,8 @@
 streamlit==1.39.0
-langchain==0.3.7
 langchain-community==0.3.5
 langchain-openai==0.2.8
 langchain-qdrant==0.2.0
+langchain-text-splitters==0.3.2
 pypdf==5.9.0
 qdrant-client==1.12.1
 python-dotenv==1.0.1

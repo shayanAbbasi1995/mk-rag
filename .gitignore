@@ -1,5 +1,6 @@
 # API Keys - never commit secrets
 .streamlit/secrets.toml
+index_tracker.json
 API keys/
 *api_key*
 *api_keys*
