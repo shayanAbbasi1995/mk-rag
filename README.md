@@ -168,8 +168,3 @@ All tuning parameters are constants at the top of `app.py`:
 
 The session-pinning regex (`SESSION_QUERY_RE`) defaults to sessions 1–13. Update the range in `_detect_session_number()` in `app.py` if your course has a different number of sessions/weeks.
 
----
-
-## Built with
-
-This template was built as a practical example of applying the **Preprocessing Unstructured Data for LLM Applications** workflow to a real academic course. The ingestion pipeline follows the partition → clean → chunk → embed → store pattern from that course, using the `unstructured` library for multi-format document handling.
