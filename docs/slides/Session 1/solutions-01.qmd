@@ -1,0 +1,139 @@
+---
+title: "Solutions — Session 1: R Basics on Maritime Roast Transactions"
+subtitle: "M731 · Full worked walkthrough (companion to session-01.qmd)"
+author: "Shay Abbasi"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    code-fold: false
+    embed-resources: true
+    theme: cosmo
+execute:
+  echo: true
+  eval: true
+  warning: false
+  message: false
+---
+
+## Purpose
+
+This file is the **full worked version** of the Session 1 R lab. The
+slide deck (`session-01.qmd`) shows the abbreviated, live-coding
+version; this document runs every step end-to-end against the real
+`data/maritime_transactions.csv` file in this folder, shows actual
+output, and adds a short interpretation after each step — the kind of
+detail you should include in any analysis you hand in.
+
+**Dataset.** `maritime_transactions.csv` is instructor-simulated: six
+months of Maritime Roast subscription orders (~15,000 rows), generated
+by `Sources/slides/data-raw/generate_datasets.R` with a fixed seed so
+it is exactly reproducible. Columns: `order_id`, `subscriber_id`,
+`order_date`, `tier`, `region`, `referral_source`, `amount`,
+`churn_flag`.
+
+## Setup
+
+```{r}
+#| label: setup
+library(tidyverse)
+
+tx <- read_csv("data/maritime_transactions.csv")
+```
+
+## Vectors — the building block
+
+```{r}
+#| label: vectors
+prices <- c(15.99, 22.50, 18.75, 25.00, 19.99)
+mean(prices)
+sd(prices)
+median(prices)
+```
+
+**Interpretation.** Five prices average \$20.45 with a standard
+deviation of \$3.51 — a tight, plausible spread for coffee-bag pricing
+across three tiers.
+
+## Data frame structure
+
+```{r}
+#| label: glimpse
+glimpse(tx)
+dim(tx)
+```
+
+**Interpretation.** `r nrow(tx)` orders across `r ncol(tx)` columns.
+`tier`, `region`, and `referral_source` are categorical; `amount` is
+the continuous order value; `churn_flag` is a 0/1 indicator of
+6-month churn recorded at the order level.
+
+## Indexing
+
+```{r}
+#| label: indexing
+tx$tier |> head()          # one column, first values
+tx[1, ]                     # first row
+tx[1:5, "amount"]           # first five order amounts
+
+tx |> filter(tier == "Discovery") |> summarise(mean_amount = mean(amount))
+```
+
+**Interpretation.** Discovery-tier orders average noticeably more per
+order than the overall book — expected, since Discovery is the
+premium tier.
+
+## Descriptives with dplyr
+
+```{r}
+#| label: grouped-descriptives
+tx_summary <- tx |>
+  group_by(tier, region) |>
+  summarise(
+    n = n(),
+    mean_amount = mean(amount),
+    median_amount = median(amount),
+    total = sum(amount),
+    .groups = "drop"
+  ) |>
+  arrange(desc(mean_amount))
+
+tx_summary
+```
+
+**Interpretation.** Read this table by scanning `mean_amount` top to
+bottom. Discovery orders carry the highest average order value in both
+regions; Ontario orders run slightly above Atlantic orders within each
+tier, consistent with the small Ontario price adjustment built into
+the simulation. This is exactly the sort of table you'd open a client
+memo with — one paragraph on "who spends the most" answers itself from
+this output alone.
+
+## A first look at churn
+
+Not shown in the slide deck, but a natural next question given
+Maritime Roast's churn-reduction priority:
+
+```{r}
+#| label: churn-by-tier
+tx |>
+  group_by(tier) |>
+  summarise(
+    n_orders = n(),
+    churn_rate = mean(churn_flag),
+    .groups = "drop"
+  ) |>
+  arrange(desc(churn_rate))
+```
+
+**Interpretation.** Standard-tier orders show the highest churn flag
+rate, Discovery the lowest — a pattern worth carrying into the Week 6
+hypothesis-testing lab, where we test whether WTP and satisfaction
+differ meaningfully by subscriber status.
+
+## Take-away for students
+
+The pattern in every one of these blocks is the same: **load → inspect
+→ group_by + summarise → interpret in one sentence**. That four-step
+loop is the single most-repeated move in this course. If you can write
+it from memory, you're ready for Week 6.

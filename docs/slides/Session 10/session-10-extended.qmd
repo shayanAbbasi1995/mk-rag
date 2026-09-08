@@ -1,0 +1,525 @@
+---
+title: "Session 10 — Experimental Research and A/B Testing"
+subtitle: "M731 Marketing Research · Comprehensive Lecture Notes"
+author: "Shay Abbasi"
+date: "2026-11-11"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    theme: cosmo
+    self-contained: true
+---
+
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE, message = FALSE, warning = FALSE)
+```
+
+# Correlation, Causation, and Why the Distinction Matters
+
+## The Problem with Observational Associations
+
+Sessions 6 through 9 covered methods for describing, comparing, and reducing data from observational surveys. Those analyses answer questions like: How satisfied are our subscribers? Which tiers differ in satisfaction? What latent need states drive subscriptions? These are valuable descriptive and associational questions.
+
+But marketing decisions require something different. When Maritime Roast considers changing its subscription upgrade offer, it is not asking "who upgrades?" — it is asking "will this new offer *cause* more people to upgrade?" The causal question demands a different methodology.
+
+Consider an observational finding: subscribers who receive Maritime Roast's weekly email newsletter spend 20% more than those who do not. Does the newsletter cause higher spending? Several alternative explanations are equally consistent with this finding:
+
+- Customers who value the brand enough to subscribe to the newsletter were already predisposed to spend more
+- Higher-spending customers have more subscription touchpoints and are more likely to encounter the newsletter sign-up
+- A third variable — loyalty — causes both newsletter subscription and high spending
+
+Without randomisation, you cannot determine which of these stories is true. The observed association between newsletter receipt and spending confounds the causal effect of the newsletter with the pre-existing differences between those who chose to subscribe and those who did not.
+
+## The Rubin Causal Model
+
+Donald Rubin's potential outcomes framework (1974, 1978) provides precise language for causal questions. For each customer i, define:
+
+- $Y_i(1)$ = the outcome (e.g., whether they upgrade) if customer i receives the new offer
+- $Y_i(0)$ = the outcome if customer i receives the current offer
+
+The individual causal effect is $\tau_i = Y_i(1) - Y_i(0)$.
+
+The fundamental problem of causal inference (Holland, 1986) is that you observe only one potential outcome for each customer — either they were in the treatment group or the control group, never both. The counterfactual outcome is unobservable in principle.
+
+Because individual causal effects are unidentifiable, we target the Average Treatment Effect (ATE):
+
+$$ATE = E[Y_i(1) - Y_i(0)] = E[Y_i(1)] - E[Y_i(0)]$$
+
+With random assignment to treatment and control:
+
+$$\widehat{ATE} = \bar{Y}_{treatment} - \bar{Y}_{control}$$
+
+This estimate is unbiased because randomisation makes the two groups comparable in expectation before the treatment: $E[Y_i(0)|\text{treated}] = E[Y_i(0)|\text{control}]$. The untreated group estimates what the treated group would have experienced without treatment, and vice versa.
+
+## Selection Bias Without Randomisation
+
+Without random assignment, the naive difference in means contains a selection bias term:
+
+$$\bar{Y}_{treated} - \bar{Y}_{control} = ATE + \underbrace{E[Y_i(0)|\text{treated}] - E[Y_i(0)|\text{control}]}_{\text{selection bias}}$$
+
+The selection bias term is the difference in potential control outcomes between the two groups — that is, the difference in what the two groups would have achieved without treatment. Newsletter subscribers who self-selected into the list have systematically higher baseline potential outcomes ($Y_i(0)$) than non-subscribers. The naive comparison attributes this baseline advantage to the newsletter, inflating the estimated effect.
+
+Randomisation eliminates selection bias by making groups statistically equivalent before treatment assignment. This is why randomised controlled trials are the gold standard for causal inference — not because they are operationally easy (they often are not), but because they are the only design that eliminates selection bias without additional assumptions.
+
+## When Correlation Suffices and When Causation Is Required
+
+Causal thinking is required any time the research objective is to inform an action:
+
+- "Should we implement this new offer?" requires causal evidence that the offer changes behaviour
+- "Which customers are at risk of churning?" requires only prediction — a well-calibrated model that forecasts churn probabilities serves this purpose without identifying causation
+- "Did our Q2 promotion increase revenue?" is a causal question (counterfactual: what would revenue have been without the promotion?)
+
+Machine learning models built for prediction are inherently correlational and are correctly used as such. A gradient-boosted tree predicting churn probability does not need to identify the causes of churn — it needs to predict it accurately. But deciding which intervention to deploy on high-risk churners is a causal question.
+
+# Types of Experiments
+
+## Laboratory Experiments
+
+Laboratory experiments assign participants to conditions in a controlled setting — a research facility, a computer lab, or an online platform with strict experimental control. The researcher controls all aspects of stimulus presentation, eliminates extraneous variation, and ensures that any difference between conditions must be due to the manipulation.
+
+Laboratory experiments achieve high **internal validity**: because the setting is controlled, we can be confident the observed difference reflects the manipulation's causal effect. They sacrifice **external validity**: the controlled, artificial setting may not generalize to the real-world market context where the decision will be implemented.
+
+Academic consumer behaviour research relies heavily on laboratory experiments because internal validity is essential for theory-building. Commercial marketing research uses laboratory experiments selectively — for package design testing, advertising pre-testing, and price sensitivity research where controlled stimulus presentation is essential.
+
+## Field Experiments and the A/B Test
+
+Field experiments occur in the actual market environment with real customers making real decisions with real stakes. The A/B test is the paradigm field experiment: customers are randomly assigned to see one version of a webpage, offer, email, or product feature (A = control, B = treatment), and actual behaviour is observed.
+
+Field experiments sacrifice some internal validity relative to laboratory experiments (confounds are harder to eliminate in the real world) but gain external validity — the effect you measure is the effect that will occur in the market environment where your decision will be implemented.
+
+Major technology and e-commerce companies (Google, Meta, Amazon, Netflix, Airbnb) run thousands of A/B tests concurrently, making experimentation a core organizational capability rather than a research department function.
+
+## Quasi-Experiments
+
+Quasi-experiments use naturally occurring variation in treatment assignment — policy changes, geographic rollouts, eligibility cutoffs — rather than researcher-controlled random assignment. Because assignment is not random, causal identification requires additional assumptions and analytic strategies.
+
+Major quasi-experimental designs include:
+
+**Difference-in-differences (DiD):** Compare the before-after change in an outcome for a treated group to the before-after change for a comparison group. The design identifies the causal effect under the parallel trends assumption — that treated and control groups would have followed the same trajectory absent the treatment.
+
+**Regression discontinuity design (RDD):** When treatment assignment is determined by a threshold on a continuous variable, units just above and just below the threshold are comparable on all dimensions except treatment receipt. The discontinuity in the outcome at the threshold is the causal effect.
+
+**Instrumental variables (IV):** Uses an instrument — a variable that affects treatment assignment but affects the outcome only through its effect on treatment — to identify causal effects in observational data.
+
+These designs are covered in depth in econometrics courses. For M731, the key awareness is that when randomisation is infeasible, these designs provide partial causal identification under stated assumptions — they are not as credible as randomisation but much stronger than simple regression on observational data.
+
+# Validity Threats
+
+## Internal Validity: Can You Trust the Causal Claim?
+
+Internal validity asks whether the observed difference in outcomes between treated and control groups is attributable to the treatment rather than to something else. Cook and Campbell (1979) catalogued the major threats:
+
+| Threat | What it is | Maritime Roast example |
+|--------|-----------|----------------------|
+| Selection | Groups differ before treatment | Loyal subscribers more likely to enroll in the new offer |
+| History | External event during the study | Competitor promotional campaign during test |
+| Maturation | Subjects change over time | Seasonal variation in upgrade intent |
+| Instrumentation | Measurement process changes | Website redesign during test period |
+| Testing | Prior measurement affects outcome | Pre-test satisfaction survey primes upgrade thinking |
+| Regression to the mean | Extreme groups return to average | Testing only on recent churners who self-select |
+| Attrition | Differential dropout | New-offer group opts out if terms seem worse |
+
+Random assignment defends only against selection. The other threats must be addressed through experimental design choices: running both arms simultaneously eliminates history effects; keeping the test period short relative to the change cycle limits maturation; using the same measurement instrument for both arms eliminates instrumentation.
+
+**Intention-to-treat (ITT) analysis** is the correct response to attrition. Analyse subjects in the arm they were originally assigned to, even if they never received the treatment (e.g., the email bounced, the page was not loaded). This preserves the benefits of randomisation. Per-protocol analyses — analysing only those who actually received treatment — can reintroduce selection bias.
+
+## External Validity: Do Results Generalize?
+
+External validity asks whether the causal effect measured in this study will replicate in other contexts, populations, times, and settings.
+
+For Maritime Roast's A/B test on subscription upgrades, the sample is current subscribers — a self-selected group of existing customers who have already opted into a DTC subscription model. The effect of the new offer on this sample may not generalize to:
+
+- Potential new subscribers who have never tried the service
+- Subscribers in future time periods with different economic conditions
+- Customers in different markets with different competitive contexts
+
+Henrich, Heine, and Norenzayan (2010) highlighted how heavily psychological and marketing research relies on WEIRD samples — Western, Educated, Industrialised, Rich, Democratic. Maritime Roast's subscriber sample is doubly selected: it is Canadian (Western, Industrialised, Democratic), and within Canada it represents coffee enthusiasts willing to pay a subscription premium (Educated, Rich relative to the general population).
+
+Being explicit about who your sample is and who it is not is not a weakness in research reporting — it is the honest statement of scope.
+
+# Experimental Design Concepts
+
+## Between-Subjects and Within-Subjects Designs
+
+**Between-subjects designs** assign each participant to only one condition. The treatment and control groups are different people. Differences between groups are compared across subjects. This is the standard A/B test design.
+
+**Within-subjects designs** expose each participant to all conditions, typically in a counterbalanced order. Because the same person serves as their own control, individual-level variation is removed from the error term, increasing statistical power. Within-subjects designs require counterbalancing to control order effects (the effect of receiving condition A first may differ from receiving condition B first).
+
+Within-subjects designs are impractical for most A/B tests on online platforms because exposing the same customer to both versions of an offer creates carryover effects and demand characteristics.
+
+## Blocking and Stratified Randomisation
+
+Blocking (also called stratified randomisation) assigns treatment within levels of a variable known to affect the outcome. If region is expected to moderate the effect of the new offer, block on region: within each region, randomly assign 50% to treatment and 50% to control.
+
+Blocking reduces variance in the treatment effect estimate by ensuring that both arms have identical distributions on the blocking variable. An unblocked experiment may by chance have more Atlantic Canada subscribers in the treatment arm and more Ontario subscribers in the control arm, confounding region with treatment. Blocking prevents this.
+
+```{r}
+#| label: stratified-randomisation
+
+library(tidyverse)
+
+# Stratified randomisation: 50/50 split within each region
+set.seed(42)
+subscribers <- read_csv("data/maritime_subscribers.csv")
+
+subscribers_randomised <- subscribers |>
+  group_by(region) |>
+  mutate(
+    treatment = sample(
+      c("control", "new_offer"),
+      size = n(),
+      replace = TRUE,
+      prob = c(0.5, 0.5)
+    )
+  ) |>
+  ungroup()
+
+# Verify balance within regions
+subscribers_randomised |>
+  count(region, treatment) |>
+  pivot_wider(names_from = treatment, values_from = n)
+```
+
+## Factorial Designs
+
+Factorial designs manipulate two or more factors simultaneously, allowing you to test main effects of each factor and their interaction. A 2×2 factorial — varying the offer (current vs. new) and the message tone (formal vs. casual) — produces four cells:
+
+| | Formal | Casual |
+|--|--------|--------|
+| Current offer | n/4 | n/4 |
+| New offer | n/4 | n/4 |
+
+The same total n that would test only the offer effect in a simple A/B test now also estimates the tone effect and the offer × tone interaction. The interaction answers: does the new offer work better with casual tone? This is more efficient than running two separate experiments and more informative than either alone.
+
+Interactions require more statistical power to detect than main effects. With the same effect size, you need approximately four times the n per main effect to reliably detect an interaction of the same magnitude.
+
+# Power Analysis for A/B Tests
+
+## Sample Size Before You Start
+
+Running an A/B test without a power analysis is a common and costly error. An underpowered test cannot reliably detect real effects — it will produce inconclusive results not because the true effect is absent but because the study was too small to find it. Power analysis translates a target effect size into a required sample size before the test begins.
+
+For a two-proportion test (the typical A/B test on a binary conversion outcome), Cohen's h is the appropriate effect size measure:
+
+$$h = 2\arcsin(\sqrt{p_1}) - 2\arcsin(\sqrt{p_2})$$
+
+```{r}
+#| label: power-analysis-ab
+
+library(pwr)
+
+# Maritime Roast context: current upgrade rate 8%, expecting 11% with new offer
+p_control   <- 0.08
+p_treatment <- 0.11
+effect_size <- ES.h(p_treatment, p_control)   # Cohen's h
+
+# Required n per arm (two-sided, 80% power)
+pwr.2p.test(
+  h           = effect_size,
+  sig.level   = 0.05,
+  power       = 0.80,
+  alternative = "two.sided"
+)
+```
+
+For a 3 percentage-point lift from an 8% baseline (a realistic commercial effect), Cohen's h ≈ 0.12 — a small effect by conventional standards. Detecting this with 80% power at α = 0.05 requires approximately 1,100 per arm, or 2,200 total. Maritime Roast's subscriber base of 12,000 is large enough, but the test must run long enough to accumulate 2,200 upgrade-eligible contacts.
+
+## The Minimum Detectable Effect (MDE)
+
+An alternative framing: given the number of subscribers available to test within a realistic timeframe, what is the smallest effect the study can reliably detect?
+
+```{r}
+#| label: mde-calculation
+
+# Given 1,000 per arm, what's the MDE?
+pwr_result <- pwr.2p.test(
+  n           = 1000,
+  sig.level   = 0.05,
+  power       = 0.80,
+  alternative = "two.sided"
+)
+
+# Approximate MDE in percentage points
+h_mde  <- pwr_result$h
+p_base <- 0.08
+p_mde  <- (sin(asin(sqrt(p_base)) + h_mde / 2))^2
+cat("MDE:", round((p_mde - p_base) * 100, 1), "percentage points\n")
+```
+
+Deciding the MDE before running the test forces the team to confront whether the expected effect is large enough to be commercially meaningful. If the MDE is 4 percentage points but the team believes the true lift is only 1–2 percentage points, the test is likely to remain inconclusive — and should either be redesigned or not run.
+
+# Peeking and Sequential Testing
+
+## The Multiple-Testing Problem in A/B Tests
+
+A widespread and damaging practice in online A/B testing is "peeking" — checking the p-value as data accumulates and stopping the test when it reaches significance. This looks like prudent monitoring but systematically inflates the Type I error rate far above the nominal α = 0.05.
+
+The following simulation makes the problem concrete. It runs a null experiment (no real difference between arms) and checks significance at regular intervals. The proportion of runs that produce at least one false significant result is the empirical false-positive rate:
+
+```{r}
+#| label: peeking-simulation
+
+set.seed(42)
+
+simulate_peeking <- function(n_total = 2000,
+                             checks_at = seq(100, 2000, 100)) {
+  data <- rbinom(n_total, 1, 0.10)   # null: both arms at 10%
+  results <- sapply(checks_at, function(n) {
+    d   <- data[1:n]
+    mid <- n %/% 2
+    prop.test(
+      x = c(sum(d[1:mid]), sum(d[(mid+1):n])),
+      n = c(mid, n - mid)
+    )$p.value
+  })
+  any(results < 0.05)   # false positive if any check reaches significance
+}
+
+false_positive_rate <- mean(replicate(1000, simulate_peeking()))
+cat("False positive rate with peeking:", round(false_positive_rate, 3), "\n")
+# Expected: ~0.25-0.35 vs. nominal 0.05
+```
+
+Peeking at 20 interim points inflates the false positive rate from 5% to 25–35%. If product teams check A/B test dashboards daily and stop experiments when p < 0.05 appears, roughly one in four significant results will be false positives in experiments where there is no real effect.
+
+## Honest Alternatives: Pre-Commitment and Sequential Testing
+
+**Fixed-n pre-commitment** is the simplest solution: decide the sample size before the test, do not look at significance during the test, and analyse only at the predetermined endpoint. This maintains the nominal Type I error rate but prevents legitimate early stopping.
+
+**Sequential testing** (group-sequential methods, SPRT — Sequential Probability Ratio Test) allows interim analyses while controlling Type I error mathematically. These methods pre-allocate a portion of the alpha budget to each planned interim analysis using a "spending function" that makes early stopping require overwhelming evidence.
+
+```{r}
+#| label: sequential-testing
+
+# install.packages("gsDesign")
+library(gsDesign)
+
+# Group-sequential design: 3 analyses (2 interim + 1 final)
+# O'Brien-Fleming spending function (conservative at early looks)
+gsd <- gsDesign(
+  k         = 3,
+  test.type = 2,     # two-sided
+  alpha     = 0.05,
+  beta      = 0.20,  # 80% power
+  sfu       = sfOF   # O'Brien-Fleming
+)
+
+gsd   # shows adjusted critical values at each analysis point
+```
+
+The O'Brien-Fleming spending function is conservative at early interim analyses: to stop early, you need an overwhelming effect (z > 4 at the first look rather than z > 1.96). This prevents spurious early stopping while allowing legitimate early termination for very large effects. Major A/B testing platforms (Optimizely's "Stats Engine," Amplitude Experiment) implement variants of this approach.
+
+# Analysing an A/B Test in R
+
+## Step 1 — Descriptives and Randomisation Check
+
+```{r}
+#| label: abtest-step1
+
+library(tidyverse)
+
+ab <- read_csv("data/maritime_abtest.csv")
+
+# Overall structure
+count(ab, treatment)
+
+# Randomisation check: covariate balance
+balance_table <- ab |>
+  group_by(treatment) |>
+  summarise(
+    n             = n(),
+    mean_age      = mean(age, na.rm = TRUE),
+    pct_female    = mean(gender == "F", na.rm = TRUE),
+    mean_tenure   = mean(tenure_months, na.rm = TRUE),
+    pct_standard  = mean(tier == "Standard", na.rm = TRUE)
+  )
+
+balance_table
+
+# Formal balance tests
+t.test(age ~ treatment, data = ab)
+chisq.test(table(ab$gender, ab$treatment))
+t.test(tenure_months ~ treatment, data = ab)
+```
+
+Balance checking is a sanity check on randomisation — not a prerequisite for analysis. If randomisation was implemented correctly, you expect no significant covariate differences between arms. Significant imbalances (particularly large ones) warrant investigating whether the randomisation mechanism was flawed.
+
+## Step 2 — Primary Analysis
+
+```{r}
+#| label: abtest-step2
+
+# Summary by arm
+ab_summary <- ab |>
+  group_by(treatment) |>
+  summarise(
+    n            = n(),
+    n_upgraded   = sum(upgraded),
+    upgrade_rate = mean(upgraded)
+  )
+
+ab_summary
+
+# Two-proportion test (unadjusted primary analysis)
+prop.test(
+  x = c(ab_summary$n_upgraded[1], ab_summary$n_upgraded[2]),
+  n = c(ab_summary$n[1],          ab_summary$n[2]),
+  alternative = "two.sided"
+)
+
+# Effect size: Cohen's h
+library(pwr)
+ES.h(ab_summary$upgrade_rate[2], ab_summary$upgrade_rate[1])
+```
+
+Report both absolute lift (treatment rate minus control rate, in percentage points) and relative lift (absolute lift divided by control rate). Executives often communicate with relative lift ("50% improvement!"); analysts should always show absolute lift as context because relative lift from a low base can be misleading.
+
+## Step 3 — Covariate-Adjusted Analysis
+
+Including pre-treatment covariates in a logistic regression does not change what the experiment identifies (the unadjusted analysis is already unbiased under randomisation) but can increase precision by reducing residual variance. In a well-randomised experiment, the adjusted and unadjusted estimates should be numerically similar; large discrepancies warrant investigation.
+
+```{r}
+#| label: abtest-step3
+
+# Logistic regression adjusted for covariates
+fit_log <- glm(
+  upgraded ~ treatment + age + tenure_months + gender + tier,
+  family = binomial(link = "logit"),
+  data   = ab
+)
+
+# Odds ratio for treatment
+broom::tidy(fit_log, exponentiate = TRUE, conf.int = TRUE) |>
+  filter(term == "treatmentnew_offer")
+
+# Average marginal effect (more interpretable — in probability units)
+library(marginaleffects)
+avg_slopes(fit_log, variables = "treatment")
+```
+
+The average marginal effect (AME) from the adjusted logistic regression is the gold standard for reporting to non-technical stakeholders. It answers: "on average, what is the change in the probability of upgrading when we switch from the current offer to the new offer?" The AME is in the same units as the raw rate difference (percentage points) but adjusted for covariate imbalance.
+
+## Step 4 — Business Interpretation
+
+The written recommendation should contain five elements: absolute and relative lift, the statistical test, the adjusted estimate with confidence interval, the commercial magnitude, and at least one honest limitation.
+
+Example: "The new subscription upgrade offer increased the 30-day upgrade rate by 3.2 percentage points (from 8.1% in the control arm to 11.3% in the treatment arm), a 40% relative lift. This difference was statistically significant (χ²(1) = 11.4, p < .001) and robust to covariate adjustment (adjusted average marginal effect = 3.0 pp, 95% CI [1.6, 4.4]). At Maritime Roast's current subscriber base of 12,000, this corresponds to approximately 384 additional annual upgrades, worth an estimated $57,600 in incremental monthly revenue ($150 average upgrade value × 12 months). We recommend implementing the new offer globally. One caveat: the test ran during Maritime Roast's peak subscription season; the lift may be smaller during lower-demand periods, and the recommendation should be revisited after a replication test in Q1."
+
+# The Difference-in-Differences Design
+
+## When Randomisation Is Infeasible
+
+Genuine random assignment is not always possible. A pricing change may need to be rolled out to all customers simultaneously. A platform feature may have network effects that make partial rollout meaningless. A regional policy change affects everyone in a geography regardless of individual assignment.
+
+In these cases, difference-in-differences (DiD) is the leading quasi-experimental approach. DiD uses panel data (pre- and post-period observations on both treated and control units) to estimate the causal effect by comparing the change in the treatment group to the change in the comparison group.
+
+The DiD estimator is:
+
+$$\hat{\delta}_{DiD} = (\bar{Y}^{treated}_{post} - \bar{Y}^{treated}_{pre}) - (\bar{Y}^{control}_{post} - \bar{Y}^{control}_{pre})$$
+
+This "difference of differences" eliminates time-invariant differences between treated and control groups (addressed by the within-group before-after difference) and common time trends (addressed by subtracting the control group's change).
+
+The identifying assumption is **parallel trends**: in the absence of treatment, the treated group's outcome would have followed the same trend as the control group's. This cannot be tested for the treatment period (by definition, you don't observe the counterfactual trend), but you can assess its plausibility by examining pre-period trends.
+
+```{r}
+#| label: did-example
+
+library(tidyverse)
+library(broom)
+
+# Suppose Maritime Roast rolled out a new onboarding flow to Atlantic Canada only
+# Simulate panel data: 500 customers, pre/post periods
+set.seed(42)
+panel_data <- expand_grid(
+  customer_id = 1:500,
+  period      = c("pre", "post")
+) |>
+  mutate(
+    region  = if_else(customer_id <= 250, "Atlantic", "Ontario"),
+    treated = (region == "Atlantic"),
+    post    = (period == "post"),
+    spend   = 50 +
+              10 * treated +          # baseline level difference
+               8 * post +             # common time trend
+               5 * treated * post +   # true DiD effect = $5
+              rnorm(n(), 0, 15)
+  )
+
+# DiD regression: interaction of treated × post is the DiD estimator
+did_fit <- lm(spend ~ treated * post, data = panel_data)
+tidy(did_fit, conf.int = TRUE)
+# The treated:postTRUE coefficient is the DiD estimate
+```
+
+The coefficient on `treated:postTRUE` in the regression is the DiD estimate. It represents the additional change in the treatment group relative to the control group's change from pre to post — the estimated causal effect. With a true effect of $5, the estimate should be close to 5 (with appropriate standard error).
+
+# Ethics of Online Experimentation: The Facebook Case
+
+## The 2014 Emotional Contagion Study
+
+In 2014, researchers at Facebook and Cornell University published a study in the *Proceedings of the National Academy of Sciences* demonstrating that manipulating the emotional valence of users' news feeds causally affected the emotional valence of their own posts (Kramer, Guillory, & Hancock, 2014). The study exposed 689,003 users to feeds with positive or negative emotional content without their explicit consent.
+
+The methodology was technically sound. The ethical controversy was substantial. Facebook argued that its Terms of Service constituted consent for research. The broader research community, ethics scholars, and the public disagreed for several reasons:
+
+- Users had no notice that they were participating in a study
+- No debriefing occurred after the experiment
+- Emotional manipulation was the treatment — a potentially harmful intervention, particularly for users experiencing depression or other mental health challenges
+- Academic co-authors published without independent IRB scrutiny
+- The consent implicit in a terms-of-service agreement does not meet the standard of informed consent for research involving human subjects
+
+## Industry Responses and Ongoing Ambiguity
+
+The fallout from the Facebook study prompted internal ethics review processes at major technology companies. Many firms now maintain internal ethics boards or IRB-like review processes for research involving users.
+
+A persistent legal and ethical ambiguity remains: "A/B testing for product optimisation" and "research on human behaviour" often involve identical technical procedures but are treated very differently under existing regulatory frameworks. A company that calls its experiment "optimising the sign-up flow" rather than "studying user psychology" may face dramatically different compliance obligations, even if the experimental design is identical.
+
+For M731 graduates working in marketing research or data analytics:
+
+- Internal product optimisation work at your company typically requires internal ethics review but not formal IRB approval
+- Academic research using company data, or industry-academic collaborations publishing results, requires full IRB review from all parties
+- Deceptive experimental designs — where participants are given false information or do not know they are being studied — require explicit debriefing afterward
+- Any experiment involving potentially vulnerable populations (children, those with mental health conditions, those in financial distress) requires heightened scrutiny
+
+The practical question to ask when uncertain: would a reasonable person, if told about this study, feel that their trust had been violated? If yes, seek additional ethics review.
+
+# Complete Pre-Analysis Plan Template
+
+A pre-analysis plan commits to the study design, primary outcomes, statistical tests, and subgroup analyses before data collection. Writing it before seeing data prevents HARKing and selective reporting.
+
+```markdown
+## Maritime Roast A/B Test — Pre-Analysis Plan
+
+**Date:** [must precede data collection]
+**Test:** New subscription upgrade offer vs. current offer
+**Primary outcome:** Upgrade rate at 30 days (binary)
+**Secondary outcomes:** Average order value at 30 days, 90-day retention rate
+**Alpha:** 0.05 (two-sided)
+**Power target:** 80%
+**Minimum detectable effect:** 3 percentage points absolute lift on upgrade rate
+**Required n per arm:** 1,100 (per pwr.2p.test with h = ES.h(0.11, 0.08))
+**Planned duration:** 28 days (to capture one full weekly cycle)
+**Primary analysis:** Two-proportion test (prop.test)
+**Secondary analysis:** Logistic regression adjusted for age, tenure, tier, gender
+**Pre-specified subgroup analyses:** None
+**Note:** Any subgroup analyses not listed above are exploratory and will be clearly flagged as such
+```
+
+Filing this document (even internally) before running the test distinguishes confirmatory from exploratory findings and protects against the accumulation of researcher degrees of freedom.
+
+# References and Further Reading
+
+**Rubin, D.B. (1974).** Estimating causal effects of treatments in randomised and nonrandomised studies. *Journal of Educational Psychology*, 66(5), 688–701. The potential outcomes framework.
+
+**Holland, P.W. (1986).** Statistics and causal inference. *Journal of the American Statistical Association*, 81(396), 945–960. Formalises the "fundamental problem of causal inference."
+
+**Cook, T.D. & Campbell, D.T. (1979).** *Quasi-Experimentation: Design and Analysis Issues for Field Settings.* Houghton Mifflin. The canonical treatment of internal and external validity threats.
+
+**Kramer, A.D.I., Guillory, J.E., & Hancock, J.T. (2014).** Experimental evidence of massive-scale emotional contagion through social networks. *Proceedings of the National Academy of Sciences*, 111(24), 8788–8790. The Facebook study at the center of the ethics discussion.
+
+**Henrich, J., Heine, S.J., & Norenzayan, A. (2010).** The weirdest people in the world? *Behavioral and Brain Sciences*, 33(2-3), 61–83. The WEIRD sample critique.
+
+**Pekelis, L., Walsh, D., & Johari, R. (2015).** The new stats engine. Optimizely white paper. Describes how sequential testing with always-valid inference addresses the peeking problem in commercial A/B testing.

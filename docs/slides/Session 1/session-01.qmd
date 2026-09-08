@@ -1,0 +1,1089 @@
+---
+title: "Session 1 — Marketing Research Process & Getting Started with R"
+subtitle: "M731 Week 1 · September 9, 2026"
+author: "Shay Abbasi"
+date: "2026-09-09"
+---
+
+## Welcome to M731 {background-color="#7A003C"}
+
+Marketing Research at DeGroote
+
+::: {.notes}
+Open by greeting students by name where possible. Take 2-3 minutes on
+introductions - who you are (research background, industry experience,
+why you teach this course). Set the tone: this is a graduate-level
+applied course. Emphasise that most of what they'll learn is used every
+day in Canadian marketing organisations. Ask students to introduce
+themselves quickly - name, work function, why they signed up. Keep it
+tight - 30 seconds each. This is worth the time; it drives team
+formation later.
+:::
+
+## Today's agenda
+
+1. Course logistics
+2. Introduction to marketing research
+3. The marketing research process
+4. Our running case: Maritime Roast Coffee Co.
+5. **Break (15 min)**
+6. Getting started with R, RStudio, and Quarto
+7. Live-code: Chapman & Feit Chapter 2
+8. Ethics thread + industry context
+9. Wrap-up + Week 2 preview
+
+::: {.notes}
+Show this agenda for ~1 minute. It doubles as the "session shape" they
+should expect every week: 75-min concept, 15-min break, 75-min R lab,
+15-min wrap-up. Point at the wall clock so they know when the break is.
+:::
+
+## Learning objectives for today
+
+By the end of session 1 you will be able to:
+
+- Locate marketing research within the broader marketing decision process
+- Walk through the marketing research process end-to-end
+- Set up a working R + RStudio + Quarto environment
+- Render a first `.qmd` report from a real dataset
+- About TCPS-2 CORE ethics certification
+
+::: {.notes}
+Read this out loud. LOs matter - they're the promise the session makes.
+If you don't hit one, call it out at the end and defer to next week
+rather than pretending it happened.
+:::
+
+# Part 1 — Course logistics {background-color="#7A003C"}
+
+## Who and where
+
+- **Instructor.** Shay Abbasi · `abbass44@mcmaster.ca`
+- **TA.** Ms. Saba Khorasani · `sabaakhr@mcmaster.ca`
+- **Where.** RJC 5100 (Burlington campus), Wednesdays, 3 hours
+- **Office hours.** Zoom, by appointment (book by email)
+- **Course site.** Avenue to Learn ("BUSADMIN M731: Marketing Research")
+
+::: {.notes}
+Point to the room map if there's a whiteboard. Emphasise that all
+communication uses their McMaster email, per outline. Anonymous
+concerns channel exists via the DeGroote MBA site - mention this once
+so students who need it know it exists.
+:::
+
+## Prerequisites (checked at registration)
+
+- **M650** (or equivalent) — statistics / quantitative methods
+- **I602** (or equivalent) — introductory quantitative methods
+
+We will review and learn more about statistical tests such as t-tests, chi-square, or basic regression as we go. 
+
+::: {.notes}
+This is where you catch students who are underprepared. Some students
+in the MBA program may have taken these years ago; some may have taken
+equivalents at other institutions. Offer a 15-min diagnostic during
+next week's office hours for anyone worried. Do NOT tell students to
+drop the course on Day 1.
+:::
+
+## Course structure at a glance
+
+- **13 weeks**: 12 lecture weeks + 1 presentation week
+- **All materials as HTML files & Quatro Files** — you'll be reading, writing, and rendering these
+- **A running case** (Maritime Roast Coffee Co.) threads every week
+
+::: {.notes}
+Slide is dense - walk through each bullet. Emphasise Quarto - many
+students haven't touched it, some have. Reassure both groups: we'll
+build fluency together. The running case is a big deal - it's what
+makes concepts stick. Preview: Maritime Roast is a Halifax coffee
+subscription business we'll use every week.
+:::
+
+## Assessment (100%)
+
+| Component                              | Weight | When            |
+|----------------------------------------|--------|-----------------|
+| Assignment 1 (individual)              | 10%    | Due Wk 6        |
+| Assignment 2 (individual)              | 10%    | Due Wk 9        |
+| Test 1 (covers Lectures 1-4)           | 20%    | Wk 5            |
+| Test 2 (covers Lectures 5-10)          | 20%    | Wk 11           |
+| Project proposal + questionnaire (grp) | 10%    | Due Wk 4 & 9        |
+| Written report (group)                 | 20%    | Due Wk 13       |
+| Presentation (group)                   | 10%    | Wk 13           |
+| **Total**                              | **100%** | **No final exam**|
+
+::: {.notes}
+No final exam is unusual and worth flagging - students will exhale.
+Two tests, two individual assignments, plus a big group project.
+Groups of 5-6, formed in Weeks 1-2. Test dates are firm; assignment
+due dates are firm too. Assignments are developed and distributed
+separately (see A2L) - this table is just the weights and dates.
+:::
+
+## Group project overview
+
+- **Groups of 5-6** — we'll form these by end of Week 2
+- **Company of your choice** (A B2C Canadian Business)
+- **Three deliverables:** proposal (Wk 4) + questionnaire (Wk 9), written report (Wk 13), presentation (Wk 13)
+
+::: {.notes}
+The REB restriction is critical. If a student wants to run a real
+survey they can do it post-course, but during the term the project
+uses secondary or simulated data. This prevents the REB timeline from
+blowing up the course. If asked why, explain: REB approval can take
+6-8 weeks, our term is 13 weeks. Doesn't fit.
+:::
+
+## Group Project Structure
+- **Nature of Marketing Research Project**:  through consultation with the client and the profess
+- **Adequate Participation**: There will be optional peer evaluation.
+- **Select a Team Leader**
+- **Find a Client by Sep 25**
+- **Submit Proposal by Sep 30**
+- **All needed forms and instructions on A2L**
+
+## Generative AI policy
+
+- Generative AI (ChatGPT, Claude, Copilot, etc.) is **allowed** for:
+  - Learning course material
+  - Studying for tests
+  - Explaining error messages
+- Generative AI is **prohibited** for graded assessments:
+  - Tests
+  - Any part of the group project (except as an explicitly disclosed learning aid)
+
+::: {.notes}
+Read this out. This is the McMaster provost policy. Give one concrete
+example: "using ChatGPT to explain why a t-test failed to reject" is
+fine; "using ChatGPT to write a graded submission for you" is
+prohibited. Students always ask about the grey area - be explicit that
+when in doubt, disclose.
+:::
+
+## Tests and missed work
+
+- **Tests:** Multiple choice and/or written. Sample questions will be provided beforehand.
+- **Missed test:** Do NOT use MSAF (MBA program doesn't accept it). Documented reasons via DSSAO within 5 working days.
+- **Alternate test:** Administered in Wk 6 (for Test 1) or December exam window (for Test 2).
+- **SAS accommodations:** Coordinate via `DSBSAS@mcmaster.ca` at least two weeks before each test.
+
+::: {.notes}
+The MSAF-not-accepted point is unusual and confuses students. Say it
+twice. Point them to the DSSAO email if they think they'll miss.
+SAS-registered students should activate accommodations in the first
+three weeks - remind them this is their responsibility.
+:::
+
+## Attendance & Class Participation
+
+- **Attendance matters** — you'll get more out of the course by being present
+- **Class Participation**: Still not evaluated, but valuable to me personally.
+
+::: {.notes}
+Don't lecture about attendance - graduate students know. Mention Top
+Hat neutrally. The alternate check-in matters for anyone without a
+smartphone; some international students may not have data plans yet.
+:::
+
+## What is Marketing?
+
+> Marketing is **the process of planning and executing the conception, pricing, promotion, and distribution of ideas, goods, and services to create exchanges that satisfy individual and organizational needs.**
+>
+> — American Marketing Association (1985)
+
+Note the four levers: **conception** (product), **pricing**, **promotion**, **distribution** — this is the marketing mix, and it's the frame for everything that follows.
+
+::: {.notes}
+This is the classic, broad definition of marketing itself - not marketing
+research specifically. Read it slowly; it packs a lot in. "Exchanges"
+is the key word - marketing exists because two parties trade value.
+"Individual and organizational needs" signals this applies to B2C and
+B2B alike. This sets up the narrower "what is marketing research"
+discussion on the next slide.
+:::
+
+## Marketing management philosophies
+
+Five philosophies describe how an organisation decides *what* to produce and sell:
+
+| Philosophy                    | Core belief                                                                 | Managerial focus                                          |
+|--------------------------------|------------------------------------------------------------------------------|-------------------------------------------------------------|
+| **Production Concept**         | Consumers prefer products that are widely available and inexpensive          | Production efficiency, low cost, mass distribution           |
+| **Product Concept**            | Consumers favour products offering the best quality, performance, features   | Continuous product improvement and innovation                |
+| **Selling Concept**            | Consumers won't buy enough unless the firm sells and promotes aggressively   | Aggressive selling and promotion                              |
+| **Marketing Concept**          | Achieving organisational goals depends on knowing target-market needs and delivering value better than competitors | Customer needs first, integrated marketing effort |
+| **Societal Marketing Concept** | Marketing decisions should balance company profits, consumer wants, and society's long-run well-being | Consumer welfare + societal interest alongside profit |
+
+*Source: adapted from Kotler, P., & Keller, K. L., Marketing Management.*
+
+::: {.notes}
+Walk the room through the historical arc: production → product → selling
+→ marketing → societal marketing roughly tracks how firms evolved from
+scarcity-era manufacturing to today's customer- and society-centred
+thinking. Ask: "which of these philosophies have you seen in your own
+company?" Most will recognise Selling Concept somewhere in their org.
+The Marketing Concept row is the one we build on for the rest of this
+slide sequence.
+:::
+
+## The Marketing Concept: three orientations
+
+The **Marketing Concept** (previous slide) isn't just an attitude — it shows up as three concrete orientations inside a market-oriented organisation:
+
+- **Consumer orientation** — understand and respond to customer needs
+- **System orientation** — every function coordinates to deliver value consistently
+- **Goal orientation** — customer satisfaction must convert into sustainable profit
+
+The next three slides unpack each one.
+
+::: {.notes}
+This is the bridge slide between "philosophies" (historical/conceptual)
+and "market orientation" (operational). Emphasise: a company can *say*
+it follows the marketing concept and still not be market-oriented in
+practice. Market orientation is what the marketing concept looks like
+when it's actually implemented.
+:::
+
+## Consumer orientation: customer focus & market intelligence
+
+- **Customer focus** — continuously understand and respond to customer needs, through feedback loops, responsive service, and regular engagement
+- **Market intelligence** — actively collect and analyse information on customers, competitors, and the broader market (competitive analysis, trend monitoring, ongoing research)
+- **Distributing intelligence** — insight only matters if it's shared: cross-functional teams, shared dashboards, regular briefings
+- Together, these help the organisation spot opportunities, anticipate demand shifts, and stay ahead of competitors
+
+::: {.notes}
+This is the orientation students will recognise most easily - it's the
+"listen to the customer" piece. The distribution point is the one
+people forget: market intelligence sitting in one department's
+dashboard that nobody else sees isn't market orientation, it's a
+report. Ask: "where does customer feedback go in your organisation,
+and who actually sees it?"
+:::
+
+## System orientation: coordinated marketing & responsiveness
+
+- **Coordinated marketing** — every department works together to create, communicate, and deliver value consistently, via integrated marketing communications and cross-functional collaboration, so the customer gets one unified experience
+- **Responsiveness** — the ability to adapt quickly when customer needs or market conditions change (agile marketing, rapid prototyping)
+- Both require clear communication, shared goals, and a willingness to change course when the data says so
+
+::: {.notes}
+Give a concrete failure example: a customer complains to support, but
+product and marketing never hear about it, so the same complaint
+recurs for a year. That's a coordination failure, not a data failure -
+the intelligence existed, it just didn't move. Responsiveness is the
+speed half of the same coin.
+:::
+
+## Goal orientation: profitability & long-term perspective
+
+Customer satisfaction is the priority, but it has to be **sustainable**:
+
+- **Profitability** — satisfying customers is the goal, but the organisation still needs to be financially viable; customer lifetime value (CLV) and return on marketing investment (ROMI) measure whether customer-focused efforts pay off
+- **Long-term perspective** — the focus is on building lasting relationships, not maximising next quarter's numbers (loyalty programs, strategic partnerships)
+- Sometimes this means short-term sacrifices (e.g., investing in service improvements that don't immediately lift revenue) in exchange for sustainable growth
+
+::: {.notes}
+This is the orientation students most often forget - they hear "market
+orientation" and think it's purely about pleasing the customer. Push
+back gently: an organisation that satisfies customers into bankruptcy
+isn't market-oriented, it's just generous. CLV is worth a 30-second
+definition if this is the first time the term comes up in the course -
+it returns in Wk 11 regression content on churn drivers.
+:::
+
+# Part 2 — What is marketing research? {background-color="#7A003C"}
+
+## Marketing research, defined
+
+> Marketing research is **the systematic gathering, recording, and analysis of data** about problems relating to the marketing of goods and services.
+>
+> — American Marketing Association
+
+Three words matter: **systematic**, **data**, **problems**.
+
+::: {.notes}
+Emphasise "systematic" - this distinguishes MR from journalism or
+opinion. "Data" - not gut feel. "Problems" - MR exists to solve a
+business problem, not to satisfy curiosity. If a research request
+doesn't map to a decision, push back.
+:::
+
+## Marketing research vs. market research
+
+- **Market research:** studying a specific market (size, structure, competitors)
+- **Marketing research:** studying anything that informs marketing decisions — pricing, product, promotion, place, plus customer research, brand research, etc.
+
+The terms are often used interchangeably. This course covers the broader "marketing research."
+
+::: {.notes}
+Small distinction, worth 30 seconds. Most textbooks use "marketing
+research"; most Canadian job postings say "market research" or "market
+insights." Both terms work.
+:::
+
+## Where does MR sit in an organisation?
+
+- **Client-side:** In-house Insights team at a brand (Loblaws, Bell, TD)
+- **Supplier-side:** MR agencies (Nielsen, IRI/Circana, Ipsos, Environics)
+- **Consulting:** Strategy firms with insights practices (McKinsey, BCG)
+- **Increasingly:** Product analytics teams (Shopify, Amplitude clients)
+
+::: {.notes}
+Ask the room: how many are client-side vs. supplier-side vs.
+consulting? Get a sense of the audience - it shapes how you frame
+examples. If mostly client-side, emphasise the "hiring a supplier"
+angle. If mostly supplier-side, emphasise the "reading a brief" angle.
+:::
+
+## What questions does MR answer?
+
+- **Descriptive:** Who buys, what they buy, when, how much?
+- **Diagnostic:** Why did share drop? Why are customers churning?
+- **Predictive:** Will this new product succeed? What is the price elasticity?
+- **Prescriptive:** Which segment should we target? What should the pack say?
+
+Every research project should answer one of these — clearly.
+
+::: {.notes}
+This is a useful framework students will return to. When someone
+proposes a study, ask "which of these four is it?" If they can't
+answer, the research question isn't sharp enough. This is a good
+question to steal for their project's problem statement.
+:::
+
+## The four Ps and MR
+
+MR informs each of the marketing mix decisions:
+
+- **Product:** concept tests, product-in-use tests, package tests
+- **Price:** price sensitivity, willingness-to-pay, van Westendorp
+- **Place:** channel performance, distribution audits
+- **Promotion:** ad tests, brand tracking, media effectiveness
+
+Plus: segmentation, positioning, brand equity, customer satisfaction.
+
+::: {.notes}
+Ask students: which of these do you touch in your day job? Get 3-4
+hands up. This connects the course to their existing work - they've
+already been consuming MR outputs (dashboards, tracking studies)
+without knowing it.
+:::
+
+## Quick check: descriptive, diagnostic, predictive, or prescriptive?
+
+Ten real Maritime Roast research questions, one at a time — each tied
+to one of the 4 Ps. Guess the question **type** out loud, then press
+**space** to reveal the answer.
+
+::: {.notes}
+This is a fast, interactive check that exercises two frameworks at
+once: the 4 Ps (what part of the marketing mix) and descriptive /
+diagnostic / predictive / prescriptive (what kind of question). Don't
+let any one example eat more than 20-30 seconds - if the room is
+stuck, give a hint rather than lingering.
+:::
+
+## Example 1 — Product
+
+> "How many subscribers have tried the Discovery tier since launch?"
+
+::: {.fragment}
+**Descriptive** — counting who did what, how much.
+:::
+
+## Example 2 — Product
+
+> "Why are Discovery-tier subscribers cancelling within their first two months?"
+
+::: {.fragment}
+**Diagnostic** — explaining a problem (early churn).
+:::
+
+## Example 3 — Product
+
+> "If we add a decaf option to the Discovery tier, how many current subscribers would upgrade?"
+
+::: {.fragment}
+**Predictive** — forecasting the effect of a product change.
+:::
+
+## Example 4 — Product
+
+> "Which new roast should we add to the Discovery tier lineup?"
+
+::: {.fragment}
+**Prescriptive** — recommending a specific action.
+:::
+
+## Example 5 — Price
+
+> "What is the average monthly spend per subscriber across our three tiers?"
+
+::: {.fragment}
+**Descriptive** — quantifying current behaviour.
+:::
+
+## Example 6 — Price
+
+> "Why did the Standard-tier renewal rate drop after last month's price increase?"
+
+::: {.fragment}
+**Diagnostic** — explaining a change in outcome.
+:::
+
+## Example 7 — Price
+
+> "What is the price elasticity of demand for the Signature tier?"
+
+::: {.fragment}
+**Predictive** — the classic price-elasticity example from a few slides back.
+:::
+
+## Example 8 — Place
+
+> "What percentage of Atlantic Canada grocers currently carry Maritime Roast retail bags?"
+
+::: {.fragment}
+**Descriptive** — current distribution coverage.
+:::
+
+## Example 9 — Place
+
+> "Which independent grocers in Ontario should we approach first for retail placement?"
+
+::: {.fragment}
+**Prescriptive** — recommending where to act.
+:::
+
+## Example 10 — Promotion
+
+> "Will a referral-bonus campaign increase new subscriber sign-ups next quarter?"
+
+::: {.fragment}
+**Predictive** — forecasting a promotion's effect.
+:::
+
+::: {.notes}
+After example 10, point out the pattern deliberately: all 4 Ps
+appeared, and so did all 4 question types — Product got all four types
+in a row (2-4), which is a nice teaching moment that any P can be
+asked about descriptively, diagnostically, predictively, or
+prescriptively. This connects directly back to "What questions does MR
+answer?" and "The four Ps and MR" a few slides earlier.
+:::
+
+# Part 3 — The marketing research process {background-color="#7A003C"}
+
+## The seven-step process
+
+1. **Define the problem** (translate a business decision into a research question)
+2. **Choose the research design** (exploratory, descriptive, causal)
+3. **Design the sampling plan**
+4. **Design the data-collection instrument** (questionnaire, guide, protocol)
+5. **Collect the data** (field the study)
+6. **Analyse the data**
+7. **Report and recommend**
+
+Every session in this course corresponds to a step (or part of one).
+
+::: {.notes}
+Steps 1-3 are the design phase (Wks 1-3). Step 4 is Wk 4-8. Step 5
+happens between weeks or in the project. Step 6 is Wks 6-11. Step 7 is
+Wk 12. Point at the wall calendar as you say this so the arc is
+visible.
+:::
+
+## Step 1: Problem definition (the hard step)
+
+The **business problem** ≠ the **research problem**.
+
+- Business problem: "Our subscription churn is up 3 pp."
+- Research problem: "Identify the leading drivers of 6-month churn among Maritime Roast subscribers, and quantify the impact of each."
+
+The research problem is **specific, measurable, and answerable with data**.
+
+::: {.notes}
+This is where most bad MR starts. Client says "sales are down, find
+out why." Research problem needs to be much sharper. Give an example
+from your own experience if you have one. Emphasise that "why are
+sales down" is not a research question - it's the beginning of a
+conversation with the client to arrive at a research question.
+:::
+
+## Step 2: Research design
+
+Three families:
+
+- **Exploratory:** hypotheses unclear, need to understand the phenomenon → qualitative, secondary data
+- **Descriptive:** you know the questions, need to quantify → surveys, panel data
+- **Causal:** need to know if X causes Y → experiments, quasi-experiments
+
+Most projects are descriptive. All three families are on our syllabus.
+
+::: {.notes}
+Wk 2 develops this in detail. Foreshadow: "next week we'll spend the
+whole session on this - so remember these three words." Ask if anyone
+knows what "quasi-experiment" means - collect the answer and defer
+until Wk 10.
+:::
+
+## Step 3: Sampling plan
+
+- **Frame:** who is eligible to be in the sample?
+- **Method:** probability (random) or non-probability (convenience, quota)?
+- **Size:** how many? (calculated from precision and effect size)
+
+Not: "we'll get 400 responses." Yes: "we'll get 400 responses because that gives us ±5% precision at 95% confidence for a proportion around 50%."
+
+::: {.notes}
+The "not/yes" contrast is important. A number without justification
+is a red flag in any research proposal. Wk 3 covers the calculation.
+Don't get into it here - just plant the flag that sample size is
+justified, not guessed.
+:::
+
+## Step 4: Instrument design
+
+- **Surveys** use questionnaires (Wk 4, refined in Wk 8)
+- **Focus groups** use discussion guides (Wk 5)
+- **Observational studies** use coding protocols (Wk 5)
+- **Experiments** use treatment scripts (Wk 10)
+
+Instruments are where measurement error sneaks in — bad wording, bad order, leading questions.
+
+::: {.notes}
+Instrument design is under-rated by students. They think "just write
+good questions." In reality, small changes in wording can shift
+results by 10 percentage points. Krosnick 1999 is the classic paper
+here - mention as optional reading for Wk 4.
+:::
+
+## Step 5: Data collection
+
+- **Modes:** in-person, phone, mail, online, mobile, panel
+- **Trade-offs:** cost, speed, coverage, response bias, incidence rate
+- **Quality:** attention checks, straight-lining detection, IP dedup
+
+For your group project, you'll use **secondary or simulated data** — but you should be able to design a collection plan as if you were fielding.
+
+::: {.notes}
+Even though group projects don't field, the plan must be defensible.
+Students design a sampling plan as if fielding, using Maritime Roast's
+Ontario entry as the worked example, but never actually field it.
+:::
+
+## Step 6: Analysis
+
+- **Describe** the data (Wk 6)
+- **Test** hypotheses (Wks 6-7)
+- **Reduce** complexity (Wks 8 scales, 9 factor)
+- **Model** drivers (Wk 11 regression)
+- **Design experiments** (Wk 10)
+
+R is our tool for every one of these. That's why we start setting up R today.
+
+::: {.notes}
+Signpost: this is 6 of our 13 sessions. Analysis is the meat of the
+course. Reassure students who are R-anxious - we build slowly.
+:::
+
+## Step 7: Report and recommend
+
+- **Structure:** executive summary → findings → evidence → limitations → recommendations
+- **Audience:** the decision-maker, not the analyst
+- **Format:** Quarto, HTML for reading, PDF for archiving, slides for presenting
+
+The best analysis in the world is worthless if the recommendation doesn't land. Wk 12 covers reporting.
+
+::: {.notes}
+This is often what industry hires you for - not the analysis but the
+communication. Emphasise: a mediocre analysis well-communicated will
+beat a brilliant analysis poorly communicated, every time.
+:::
+
+# Part 4 — The running case: Maritime Roast Coffee Co. {background-color="#7A003C"}
+
+## Meet Maritime Roast
+
+- Halifax-based direct-to-consumer specialty coffee subscription
+- Founded 2019, ~15,000 subscribers
+- Small retail presence across Atlantic Canada (independent grocer partnerships)
+- Three subscription tiers: **Standard, Signature, Discovery**
+
+*(Fictional company - but based loosely on real Canadian coffee subscription businesses.)*
+
+::: {.notes}
+Introduce the case warmly - this is our shared world for the next 13
+weeks. Ask if anyone lives in Halifax or subscribes to a coffee
+service. Personal connection to the case makes labs stick.
+:::
+
+## The decisions on Maritime Roast's plate
+
+Four strategic questions we'll explore this term:
+
+1. **Should we enter the Ontario market?** (Wks 2-4)
+2. **How do we reduce 6-month subscriber churn?** (Wks 5, 11)
+3. **Should we launch a "Discovery" premium tier?** (Wk 10 A/B test)
+4. **How should we price subscriptions?** (Wks 3, 6)
+
+Every technique this term is motivated by one of these decisions.
+
+::: {.notes}
+This is the spine. Every week you'll say "this technique lets us
+answer question X for Maritime Roast." That's what makes the arc
+coherent. Students will build muscle memory: whenever they see a new
+technique, first question is "what business decision does this
+inform?"
+:::
+
+## What the case gives us
+
+- **A recurring dataset spine** — `maritime_survey.csv`, `maritime_transactions.csv`
+- **A worked example every week** — see how one company applies each technique
+- **A template for your project** — you'll do the equivalent for your chosen company
+
+The group project uses a **different** company (Maritime Roast is the teacher's example).
+
+::: {.notes}
+Reassure the room: Maritime Roast is not the project. It's the
+worked example. The project is theirs. This is important - some
+students would happily just do Maritime Roast for their project.
+Off-limits.
+:::
+
+## Break — 15 minutes {background-color="#FDBF57"}
+
+Back at [time].
+
+Meanwhile: install R (`https://cran.rstudio.com/`) and RStudio
+(`https://posit.co/download/rstudio-desktop/`) if you haven't yet.
+
+::: {.notes}
+This is critical - install failures on Day 1 eat lab time. Circulate
+during the break and help anyone stuck. Windows users usually smooth;
+Mac users occasionally need Xcode command-line tools; Linux users
+sort themselves out. If someone can't get R installed in the break,
+pair them with a working neighbour during the lab.
+:::
+
+# Part 5 — Getting started with R, RStudio, Quarto {background-color="#7A003C"}
+
+## What are we installing?
+
+- **R** — the language and statistical engine (`https://cran.rstudio.com/`)
+- **RStudio (Posit)** — the IDE we'll use to write R code (`https://posit.co/download/`)
+- **Quarto** — the publishing system we'll use for all documents (`https://quarto.org`)
+- **TinyTeX** — a lightweight LaTeX install so we can render to PDF (`quarto install tinytex`)
+
+Everything is free and cross-platform.
+
+::: {.notes}
+Show installers in sequence on the projector if network allows. Talk
+through what each does: R is the engine, RStudio is the workshop,
+Quarto is the printing press. TinyTeX is optional if we stick to HTML,
+but PDF for submissions is common - install it once and forget it.
+:::
+
+## RStudio anatomy
+
+::: {.incremental}
+- **Top-left:** editor pane (where you write .qmd and .R files)
+- **Bottom-left:** console (where R evaluates commands)
+- **Top-right:** environment (variables, data frames)
+- **Bottom-right:** files, plots, packages, help
+:::
+
+::: {.notes}
+Actually project RStudio and click through the panes. Students learn
+this by watching, not from a slide. Show them how to reset the pane
+layout if they mess it up (Tools → Global Options → Pane Layout).
+:::
+
+## Anatomy of a .qmd file
+
+`````yaml
+---
+title: "My first Quarto document"
+format: html
+---
+
+# A section header
+
+Some prose.
+
+```{r}
+1 + 1
+```
+`````
+
+Three parts: **YAML header** (metadata), **prose** (markdown), **code chunks** (R).
+
+::: {.notes}
+Explain each part slowly. YAML controls output format - html here, but
+could be pdf, docx, revealjs. Markdown is easy - headers, bold, lists,
+tables. Code chunks are the magic - R runs and results embed into the
+document.
+:::
+
+## Installing packages
+
+```{r}
+#| eval: false
+install.packages(c(
+  "tidyverse", "readr", "readxl", "haven", "jsonlite",
+  "knitr", "gt", "kableExtra", "janitor", "broom",
+  "renv", "psych", "car", "lmtest", "sandwich",
+  "effectsize", "pwr", "corrplot", "emmeans", "lm.beta",
+  "tidytext", "readtext", "MASS", "RColorBrewer"
+))
+```
+
+Run this **once** during the lab. Takes 5-10 minutes.
+
+::: {.notes}
+Have this ready in a script file to email out or paste from the
+chalkboard. On slow WiFi at RJC, downloads can take a while - start
+this at the beginning of the lab and let it run while you talk. If a
+package fails, most common cause on Windows is antivirus scanning -
+add R's library path to the exclusion list.
+:::
+
+## The `renv` reproducibility promise
+
+```{r}
+#| eval: false
+renv::init()      # first time: creates project-level package library
+renv::snapshot()  # before submitting: lock package versions
+renv::restore()   # someone else opens the project: restore the lock
+```
+
+Every group project must include a working `renv.lock` file.
+
+::: {.notes}
+renv is worth 10 minutes now to save 10 hours later. If groups don't
+use it, one member updates a package and breaks the analysis for the
+rest. Demonstrate initialising renv in a scratch project during the
+lab.
+:::
+
+# Part 6 — Live-code: CF Chapter 2 {background-color="#7A003C"}
+
+## What we'll cover in the lab
+
+- Vectors, data frames, indexing
+- Reading a CSV file
+- Basic descriptive statistics
+- Your first Quarto render
+
+Working dataset: `maritime_transactions.csv` (~15,000 rows).
+
+::: {.notes}
+This is the meat of the R lab. Have the dataset pre-loaded on your
+machine. Live-code slowly - narrate every command. Students at the
+back should be following along on their own machines. Ask "did that
+work for everyone?" after each block.
+:::
+
+## Vectors
+
+```{r}
+#| eval: false
+prices <- c(15.99, 22.50, 18.75, 25.00, 19.99)
+mean(prices)
+sd(prices)
+median(prices)
+```
+
+A vector is a sequence of values of the same type.
+
+::: {.notes}
+Start with numeric vectors. Then show character `c("Standard",
+"Signature", "Discovery")` and logical `c(TRUE, FALSE, TRUE)`. Point
+out that R vectorises operations - `prices * 1.13` scales every price
+without a loop.
+:::
+
+## Data frames
+
+```{r}
+#| eval: false
+library(tidyverse)
+tx <- read_csv("data/maritime_transactions.csv")
+glimpse(tx)
+dim(tx)
+```
+
+A data frame is a table where each column is a vector of the same length.
+
+::: {.notes}
+Explain that `read_csv()` from readr is fast and infers column types
+sensibly. `glimpse()` from dplyr is your friend - it shows the first
+few values of every column vertically. Contrast with `head()` which
+shows rows horizontally.
+:::
+
+## Indexing
+
+```{r}
+#| eval: false
+tx$tier            # one column
+tx[1, ]            # first row
+tx[1:5, "amount"]  # first five values of the amount column
+
+tx |> filter(tier == "Discovery") |> summarise(mean_amount = mean(amount))
+```
+
+The pipe `|>` reads left-to-right, "and then".
+
+::: {.notes}
+Native pipe `|>` (base R since 4.1) preferred to magrittr `%>%` for
+new work - simpler, no package required. But both work. If students
+prefer `%>%` they can use it; consistency within a document is what
+matters.
+:::
+
+## Descriptives with dplyr
+
+```{r}
+#| eval: false
+tx |>
+  group_by(tier, region) |>
+  summarise(
+    n = n(),
+    mean_amount = mean(amount),
+    median_amount = median(amount),
+    total = sum(amount)
+  )
+```
+
+Read this as: "take tx, group by tier and region, then compute these summaries per group."
+
+::: {.notes}
+This is the workhorse pattern for exploratory analysis. group_by +
+summarise appears in every session from now on. Have students run
+this on their own machines. When they get output, ask them to
+interpret: which tier has highest mean order value? Which region?
+:::
+
+## Full worked solution
+
+The in-class snippets above are the live-coding version.
+
+A complete, expanded walkthrough of `maritime_transactions.csv` — every
+step above plus additional descriptives, output, and interpretation —
+is in **`solutions-01.qmd`** in this session's folder.
+
+::: {.notes}
+Point students to the solutions file if they want to see a fuller
+worked version outside of class, or if they fall behind during
+live-coding and need to catch up afterward.
+:::
+
+## Your first Quarto render
+
+```{r}
+#| eval: false
+# In RStudio: File > New File > Quarto Document
+# Save as: `session-01-lab.qmd`
+# Click "Render" button (or Ctrl/Cmd + Shift + K)
+```
+
+You should see:
+
+- HTML file rendered in the Viewer pane
+- File saved next to your .qmd
+- Any errors shown in the Render tab
+
+::: {.notes}
+Ceremony matters here. First render is a milestone. Congratulate the
+class. If someone's render fails, most common cause is missing TinyTeX
+(if PDF) or a package not installed. Debug live for the room - it's
+educational.
+:::
+
+## Before next week
+
+- **Not graded**, but essential: verify your R/RStudio/Quarto setup works
+- Render the lab .qmd on your own machine before Wk 2
+- Post any install errors in the A2L discussion so we can debug collectively
+
+::: {.notes}
+Frame this as insurance, not homework. If someone can't render by
+Wk 2, they'll fall behind fast. Announce office hours for setup help.
+:::
+
+# Part 7 — Ethics thread {background-color="#7A003C"}
+
+## Why ethics is a course thread, not a lecture
+
+- Every session has an ethics moment (10-15 min) baked in
+- Because ethics isn't a topic - it's a way of doing research
+- We don't wait until the ethics lecture to worry about consent
+
+::: {.notes}
+Explain the deliberate design: ethics threads make ethics real, not
+abstract. When a p-hacking issue comes up in Wk 6, we discuss it
+there, not in a Week-14 ethics lecture that doesn't exist. This is a
+graduate research course - ethics is professional practice.
+:::
+
+## TCPS-2 CORE — your first ethics deliverable
+
+- **Tri-Council Policy Statement, 2nd edition, CORE tutorial**
+- Free, online, ~2 hours
+- Register at `https://tcps2core.ca`
+- Complete by end of Week 4
+- Upload certificate to A2L
+
+Every marketing researcher who touches human data in Canada should have this.
+
+::: {.notes}
+This is genuinely useful, not busywork. Students who work in
+consulting or agency roles will encounter TCPS when clients ask about
+data practices. Some employers require it. Give it 2 minutes to
+register during the break next week if they haven't yet.
+:::
+
+## PIPEDA in a marketing-research context
+
+- **Personal Information Protection and Electronic Documents Act** (Canadian federal)
+- Applies whenever you collect / use / disclose personal information for commercial purposes
+- Governs: consent, purpose limitation, retention, security, individual access
+- Even secondary data - if it identifies people, PIPEDA applies
+
+::: {.notes}
+Provincial equivalents exist too (Quebec Law 25, Alberta PIPA). This
+is deep water for a Wk 1 session - keep it high-level. If students
+want depth, point at the Privacy Commissioner's website. The key
+takeaway: personal data is not neutral - it comes with legal
+obligations.
+:::
+
+# Part 8 — Industry context {background-color="#7A003C"}
+
+## What an MR analyst actually does
+
+Typical workflow at a client-side Insights team:
+
+1. **Brief in** (from marketing manager or product team)
+2. **Scope the study** (design, sample, budget, timeline)
+3. **Field** (in-house or via supplier)
+4. **Analyse** (in R, SPSS, Q, or Excel-plus-tears)
+5. **Report** (deck for stakeholders + one-page executive summary)
+6. **Follow up** (dashboards, tracking, next research question)
+
+::: {.notes}
+This is where you help students visualise what employment looks like.
+Most MR analyst job postings ask for 2-3 of: SQL, R or Python, one MR
+platform (Qualtrics, Confirmit), presentation skills. Emphasise that
+communication is often the differentiator between hire and no-hire.
+:::
+
+## Two industries in one profession
+
+- **Client-side.** Insights function inside a brand — mainly consumers of MR + occasional in-house studies
+- **Supplier-side.** MR agencies — design, field, analyse, and deliver studies for clients
+
+Career paths differ. Client-side rewards domain expertise; supplier-side rewards methodological range.
+
+::: {.notes}
+Ask again which side students are (or aspire to be) on. Some are neither
+- they work in marketing but not insights. Point out that these people
+still benefit from MR literacy: they consume MR outputs, they hire MR
+suppliers, they evaluate MR proposals.
+:::
+
+## Professional bodies (all free to join as students)
+
+- **ESOMAR** (global, EU-centred): `www.esomar.org`
+- **Insights Association** (US): `www.insightsassociation.org`
+- **MRIA-ARIM** (Canada): `www.mria-arim.ca`
+
+Codes of conduct, career resources, conferences, mentorship.
+
+::: {.notes}
+Encourage joining at least one - MRIA is the most Canada-relevant.
+Student memberships are usually free. Local events at MRIA Toronto
+chapter are worth attending.
+:::
+
+# Part 9 — For your project {background-color="#7A003C"}
+
+## Team formation begins today
+
+- Talk to 2-3 classmates during the wrap-up
+- By end of Wk 2: submit preferred teammates via A2L form
+- I'll finalise teams by Wk 3 — mixing background, industry, and R experience
+
+If you don't have a preference, I'll assign you.
+
+::: {.notes}
+Explicitly encourage mixed teams - students without a network
+disadvantage themselves in self-selection. Mention: teams that mix R
+comfort levels do better than teams where everyone is R-scared. Same
+for domain diversity.
+:::
+
+## What to think about for your project
+
+- What **decision** would you like to inform?
+- Whose decision is it? (Real or plausible client)
+- What data would you need? Is secondary data available?
+- Rough timeline of what you'll design vs. analyse
+
+Don't pick a topic yet. Just start noticing decisions in the world that could use research.
+
+::: {.notes}
+Give one example: "you're browsing Amazon and see a new brand of
+protein powder priced 30% below competitors - is that a viable
+positioning?" That's a research question. Push students to notice
+everyday marketing decisions.
+:::
+
+# Part 10 — Wrap-up & Week 2 preview {background-color="#7A003C"}
+
+## What we did today
+
+- Located marketing research in the marketing decision process
+- Walked through the seven-step MR process
+- Met Maritime Roast, our running case
+- Installed R, RStudio, Quarto; rendered our first `.qmd`
+- Kicked off the TCPS-2 CORE certification
+- Started team formation
+
+::: {.notes}
+Recap is worth 60 seconds. It cements the arc of the session. Students
+who checked out for parts of the class will re-engage here.
+:::
+
+## Next week: Secondary data and research designs
+
+- **Concept:** where to find secondary data, when to trust it, choosing among exploratory / descriptive / causal designs
+- **R lab:** data visualisation with ggplot2 (StatsCan coffee data)
+
+Come prepared: R environment working, TCPS-2 CORE registration underway.
+
+::: {.notes}
+Ask if anyone has questions. Announce office hours. Give the room a
+minute to network - team formation for the project starts now, so
+they should be talking to each other. Leave the projector on the
+Maritime Roast slide so they associate the room with the case.
+:::
+
+## References
+
+Silver, L., Stevens, R., Wrenn, B., & Loudon, D. (2021). The essentials of marketing research. SAGE Publications.
+
+## Thank you — see you next Wednesday
+
+Questions? Reach me at **abbass44@mcmaster.ca** or book office hours.
+
+::: {.notes}
+End on a positive note. Repeat email address. Stay for 5-10 min for
+individual questions - that's where you catch students who won't ask
+in front of the class.
+:::
+
+

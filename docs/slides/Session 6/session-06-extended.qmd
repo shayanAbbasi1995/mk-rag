@@ -1,0 +1,608 @@
+---
+title: "Session 6 — Data Analysis & Hypothesis Testing"
+subtitle: "M731 Week 6 · October 14, 2026 · Comprehensive Reading Notes"
+author: "Shay Abbasi"
+date: "2026-10-14"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    theme: cosmo
+    self-contained: true
+---
+
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE, message = FALSE, warning = FALSE)
+```
+
+# Overview
+
+Session 6 begins the analytical block of the course. Sessions 6 and 7 together cover hypothesis testing — the formal statistical framework for drawing inferences from samples to populations. Session 6 covers the foundational concepts (describing distributions, the logic of inference, two-sample tests, proportion tests, chi-square, and effect sizes) and Session 7 extends to multi-group comparisons via ANOVA.
+
+The central theme of these two sessions is *not* "how to run the right test in R" — that is a prerequisite, not the endpoint. The goal is to be able to:
+
+1. Choose the right test for a given marketing question
+2. Interpret statistical output correctly — including what p-values do and do not mean
+3. Pair statistical significance with effect sizes and confidence intervals
+4. Translate statistical findings into managerial language
+
+Session 6 also includes a substantive ethics discussion on p-hacking, HARKing (hypothesising after results are known), and selective reporting — problems that are pervasive in both academic research and commercial marketing practice.
+
+---
+
+# Describing Distributions
+
+## The Priority of Visualisation
+
+Before running any hypothesis test, visualise the distribution of your outcome variable. Distributions that violate test assumptions — severe skewness, heavy-tailed distributions, bimodal shapes, extreme outliers — are obvious in a histogram and invisible in a mean. The correct test choice depends on what the distribution looks like, and you cannot know that without looking.
+
+This is not optional. Researchers who skip visualisation and jump to test output frequently choose the wrong test, report results that do not hold up to scrutiny, and miss important features of the data that might change the entire analysis.
+
+## Central Tendency: Mean, Median, and Mode
+
+Three statistics describe the centre of a distribution:
+
+**Mean** (arithmetic average): the sum of all values divided by n. The mean is sensitive to extreme values. In a right-skewed distribution (as most financial and purchase variables are), the mean is pulled toward the upper tail and overstates the "typical" value.
+
+**Median**: the middle value when all observations are sorted. The median is robust to outliers. In a right-skewed distribution, the median better represents the "typical" case.
+
+**Mode**: the most frequently occurring value. Rarely used for continuous variables; important for nominal and heavily discretised variables.
+
+### When Mean versus Median Matters: A Marketing Example
+
+Consider willingness-to-pay (WTP) for Maritime Roast's Signature tier, measured from a sample of 12 respondents ($15, $18, $20, $22, $22, $24, $25, $26, $28, $30, $35, $95):
+
+- **Mean** = $30.00
+- **Median** = $24.50 (average of the 6th and 7th values: $24 and $25)
+
+A single outlier — the $95 WTP respondent — pulls the mean $5.50 above what 11 of 12 respondents actually indicated. If you price to the mean ($30), you would be above the threshold for 83% of the potential market. Pricing to the median ($24–$25) captures a much larger fraction.
+
+**Rule for MR reporting**: always report median alongside mean for WTP, income, spend, and any right-skewed variable. If mean and median diverge substantially, explain the source of the divergence and use the median (or a price sensitivity model) for pricing decisions.
+
+## Spread: Range, IQR, Standard Deviation, and Coefficient of Variation
+
+Four statistics describe how spread out a distribution is:
+
+**Range** (max − min): quick sanity check for impossible values. If WTP has a minimum of −5 or a maximum of 9,999, you have a data quality problem.
+
+**Interquartile range (IQR = Q3 − Q1)**: the range of the middle 50% of observations. Robust to outliers; useful with the median for describing skewed distributions.
+
+**Standard deviation (SD)**: average distance of observations from the mean. Appropriate when the mean is appropriate (roughly symmetric distributions without severe outliers).
+
+**Coefficient of variation (CV = SD/mean)**: the SD expressed as a fraction of the mean. Unit-free; allows comparison of spread across variables measured on different scales. CV requires ratio-scale data (positive mean and a meaningful zero).
+
+## Visualising Distributions in R
+
+A complete distributional summary uses four complementary visualisations:
+
+```{r}
+#| label: distribution-plots
+#| eval: false
+library(tidyverse)
+library(patchwork)
+
+survey <- read_csv("data/maritime_survey.csv")
+wtp    <- survey$wtp
+
+# 1. Histogram: raw frequency distribution
+p1 <- ggplot(data.frame(wtp), aes(wtp)) +
+  geom_histogram(binwidth = 5, fill = "#7A003C", colour = "white", alpha = 0.8) +
+  labs(title = "Histogram", x = "WTP ($/month)", y = "Count") +
+  theme_minimal()
+
+# 2. Density plot: smoothed version of the histogram
+p2 <- ggplot(data.frame(wtp), aes(wtp)) +
+  geom_density(fill = "#7A003C", alpha = 0.5) +
+  labs(title = "Density", x = "WTP ($/month)", y = "Density") +
+  theme_minimal()
+
+# 3. Boxplot: five-number summary plus outliers
+p3 <- ggplot(data.frame(wtp), aes(x = 1, y = wtp)) +
+  geom_boxplot(fill = "#FDBF57", outlier.colour = "#7A003C", outlier.size = 2) +
+  labs(title = "Boxplot", y = "WTP ($/month)") +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(), axis.text.x = element_blank())
+
+# 4. Q-Q plot: assess normality (points on the line = normal)
+p4 <- ggplot(data.frame(wtp), aes(sample = wtp)) +
+  stat_qq() +
+  stat_qq_line(colour = "#7A003C", linewidth = 1) +
+  labs(title = "Q-Q plot") +
+  theme_minimal()
+
+# Combine all four
+(p1 + p2) / (p3 + p4)
+```
+
+Each panel tells a different part of the story:
+
+- **Histogram** shows the raw shape and reveals bimodality, gaps, or extreme values
+- **Density plot** smooths the histogram and is better for comparing shapes across groups
+- **Boxplot** shows the five-number summary (min, Q1, median, Q3, max) plus outliers explicitly marked as individual points
+- **Q-Q plot** compares the observed distribution against a theoretical normal — points lying along the line indicate normality; systematic deviations indicate skewness (curves upward = right-skewed) or heavy tails (S-shaped deviation)
+
+## Descriptive Statistics in R
+
+```{r}
+#| label: descriptives
+#| eval: false
+library(tidyverse)
+library(psych)
+
+survey <- read_csv("data/maritime_survey.csv")
+
+# Base R quick summary
+summary(survey$wtp)
+
+# psych::describe() — more informative
+describe(survey$wtp)
+
+# Grouped descriptives: the workhorse pattern
+survey |>
+  group_by(region) |>
+  summarise(
+    n          = n(),
+    mean_wtp   = mean(wtp, na.rm = TRUE),
+    median_wtp = median(wtp, na.rm = TRUE),
+    sd_wtp     = sd(wtp, na.rm = TRUE),
+    iqr_wtp    = IQR(wtp, na.rm = TRUE),
+    min_wtp    = min(wtp, na.rm = TRUE),
+    max_wtp    = max(wtp, na.rm = TRUE)
+  )
+```
+
+The `psych::describe()` function returns skewness, kurtosis, trimmed mean, median absolute deviation (MAD), and standard error of the mean in addition to the basics. The trimmed mean (mean of the central 80% of observations, dropping the top and bottom 10%) is a robust estimate when outliers are present but the mean is still preferred for other reasons.
+
+---
+
+# From Description to Inference
+
+## Sample versus Population
+
+Descriptive statistics describe your sample. Inferential statistics generalise to the population from which the sample was drawn.
+
+A mean WTP of $30 in your sample is a description of the 400 people you surveyed. A 95% confidence interval of [$27, $33] is an inference about what the true mean WTP would be if you could survey the entire Ontario coffee-drinking population.
+
+Understanding which you are producing — a sample description or a population inference — matters for how you communicate results. "In our sample, mean WTP was $30" is a statement about your data. "We estimate that Ontario coffee drinkers are willing to pay, on average, between $27 and $33 per month" is an inferential claim that carries uncertainty.
+
+## The Confidence Interval: What It Actually Means
+
+A 95% confidence interval is consistently misinterpreted. What it does **not** mean: "there is a 95% probability that the true mean is in this interval." In frequentist statistics, the true parameter is fixed (not random), so probability statements about it are not meaningful.
+
+What a 95% CI does mean: "if we repeated this sampling process 100 times and computed this CI each time, approximately 95 of the 100 intervals would contain the true population mean."
+
+For practical decision-making in MR, you can interpret a CI as: "we are reasonably confident the true value lies somewhere in this range." The width of the CI communicates precision — a narrow CI (e.g., [$29.50, $30.50]) tells you the estimate is precise; a wide CI (e.g., [$15, $45]) tells you it is highly uncertain.
+
+```{r}
+#| label: confidence-intervals
+#| eval: false
+library(broom)
+
+# t.test provides CI by default
+t.test(survey$wtp)$conf.int
+
+# Via broom for tidy output
+tidy(t.test(survey$wtp), conf.int = TRUE)
+```
+
+## The Hypothesis-Testing Framework
+
+Null-hypothesis significance testing (NHST) is the dominant framework for formal statistical inference in marketing research. The logic:
+
+1. State a **null hypothesis** (H₀) representing "no effect" or "no difference" — the status quo assumption
+2. State an **alternative hypothesis** (H₁) representing the effect you want to detect
+3. Compute a **test statistic** that summarises the sample evidence against H₀
+4. Compute a **p-value** — the probability of observing data this extreme or more extreme, *if H₀ were true*
+5. **Decision rule**: reject H₀ if p < α (where α is typically 0.05)
+
+This is a formal decision procedure under uncertainty. It is not a truth-revealing machine. A p-value below 0.05 does not prove the effect is real; it indicates that the data are inconsistent with H₀ at the chosen significance level. Many real effects will be missed (Type II errors) when samples are small. Many detected "effects" are random noise (Type I errors) when many tests are run.
+
+## The Six Most Important p-Value Misinterpretations
+
+| Misinterpretation | Correct interpretation |
+|---|---|
+| "p = 0.03 means there's a 3% chance the effect is due to chance" | p = 0.03 means: if H₀ were true, data this extreme would arise 3% of the time |
+| "p < 0.05 proves the effect is real" | p < 0.05 indicates the data are inconsistent with H₀ at the 5% level; the effect may still be zero |
+| "p = 0.06 means there is probably no effect" | Failing to reject H₀ is not evidence for H₀ — it may indicate insufficient power |
+| "A smaller p-value means a larger effect" | p depends on both effect size and n; p = 0.001 at n = 10,000 may represent a tiny effect |
+| "Non-significant means the groups are equal" | It means we cannot statistically distinguish them — they may still differ meaningfully |
+| "α = 0.05 is the universal threshold of truth" | α = 0.05 is a widely used convention; the appropriate α depends on the cost of each error type |
+
+## Type I and Type II Errors
+
+Every hypothesis test risks two types of error:
+
+**Type I error (false positive)**: rejecting H₀ when it is actually true. Probability = α. This is "finding" an effect that does not exist.
+
+**Type II error (false negative)**: failing to reject H₀ when H₁ is actually true. Probability = β. This is "missing" an effect that does exist.
+
+**Power** = 1 − β = the probability of correctly detecting an effect when one exists.
+
+The tradeoff: stricter α (e.g., 0.01 instead of 0.05) reduces Type I errors but increases Type II errors. Larger samples reduce both Type I and Type II errors simultaneously.
+
+For commercial MR, the appropriate α depends on the cost of each error type. A Type I error in drug safety testing (approving an ineffective drug) is catastrophic; α = 0.001 or lower is appropriate. A Type I error in deciding which of two ad concepts to test in market is low-cost (run the wrong ad for a few weeks); α = 0.10 may be defensible to reduce the risk of missing a real effect with a small sample.
+
+---
+
+# Choosing the Right Test
+
+The choice of hypothesis test depends on the type of outcome variable and the structure of the comparison:
+
+```
+What is the outcome variable?
+  |
+  +-- Continuous (interval or ratio scale)
+  |     |
+  |     +-- How many groups?
+  |           One group vs. a reference value → one-sample t-test
+  |           Two independent groups         → two-sample (Welch) t-test
+  |           Two paired measurements        → paired t-test
+  |           Three or more groups           → ANOVA (Session 7)
+  |
+  +-- Categorical (nominal)
+  |     |
+  |     +-- One proportion vs. reference  → one-sample prop.test
+  |         Two proportions              → two-sample prop.test or chi-square
+  |         Association between two vars → chi-square (or Fisher's Exact)
+  |
+  +-- Ordinal (or continuous but non-normal / small n)
+        Two groups → Wilcoxon rank-sum (Mann-Whitney U)
+        Three or more groups → Kruskal-Wallis
+```
+
+The most common errors in test selection: using a t-test on a binary outcome (use `prop.test` or logistic regression), ignoring paired structure (use paired t-test not independent), and using chi-square when the expected cell counts are below 5 (use Fisher's Exact Test instead).
+
+---
+
+# Two-Sample Tests
+
+## The Two-Sample t-Test
+
+Compare means of two independent groups.
+
+```{r}
+#| label: two-sample-ttest
+#| eval: false
+# Does WTP differ between Ontario and Atlantic subscribers?
+t.test(wtp ~ region, data = survey)
+```
+
+R defaults to Welch's t-test (which does not assume equal variances across groups). Welch's is a safer default than Student's t-test and is appropriate whenever you are unsure whether group variances are equal.
+
+**How to read the output**:
+
+```
+Welch Two Sample t-test
+
+t = 2.31, df = 398.5, p-value = 0.021
+alternative hypothesis: true difference in means is not equal to 0
+95 percent confidence interval:
+  1.23  15.77
+sample estimates:
+  mean in group Atlantic  mean in group Ontario
+                  28.4                    36.8
+```
+
+- **t = 2.31**: the test statistic — the observed difference between group means, expressed in standard error units
+- **df = 398.5**: Welch's degrees of freedom (not a round number because group variances differ)
+- **p = 0.021**: if WTP were truly equal across regions, data this different would occur 2.1% of the time
+- **95% CI [1.23, 15.77]**: the plausible range for the true mean difference
+- **Means**: Ontario WTP ($36.80) is $8.40 higher than Atlantic ($28.40)
+
+**Managerial translation**: "Ontario prospects are willing to pay an estimated $8.40/month more for a Maritime Roast subscription than current Atlantic subscribers (t = 2.31, df = 399, p = 0.021, 95% CI: $1.23–$15.77). Even at the lower bound of this confidence interval, a $1.23 premium over 18 months of average tenure produces $22.14 in additional revenue per subscriber — exceeding the estimated $18 difference in Ontario acquisition costs. This difference is statistically significant and supports exploring Ontario-specific pricing."
+
+That paragraph contains six elements: group means, test statistic and df, p-value, confidence interval, an effect-size interpretation, and a managerial implication. Every hypothesis test in a professional report should be written with all six elements.
+
+## The Paired t-Test
+
+When the same individuals are measured twice (before/after, two conditions), pairing must be exploited. The paired t-test subtracts one measurement from the other for each individual and tests whether the mean difference is zero:
+
+```{r}
+#| label: paired-ttest
+#| eval: false
+# Pre-post: brand attachment before and after an intervention
+t.test(survey$attachment_post, survey$attachment_pre, paired = TRUE)
+```
+
+Using an independent-samples t-test on paired data ignores the within-person correlation, producing conservative (overly wide) confidence intervals and lower power than the paired test.
+
+## Non-Parametric Alternatives
+
+When the t-test assumptions are violated — severe non-normality, small samples (n < 30 per group), or clearly ordinal data — the Wilcoxon rank-sum test (also called Mann-Whitney U) is the appropriate alternative:
+
+```{r}
+#| label: wilcoxon
+#| eval: false
+# Non-parametric alternative to two-sample t-test
+wilcox.test(wtp ~ region, data = survey)
+```
+
+The Wilcoxon test compares medians (more precisely, it tests whether the distribution of one group is shifted relative to the other). It is less statistically powerful than the t-test when the t-test assumptions hold, but more robust when they do not.
+
+---
+
+# Proportion Tests and Chi-Square
+
+## Two-Sample Proportion Test
+
+Compare proportions (binary outcomes) across two groups:
+
+```{r}
+#| label: prop-test
+#| eval: false
+# Proportion recommending Maritime Roast: subscribers vs. lapsed
+# Suppose: 180 of 400 subscribers recommend; 120 of 400 lapsed subscribers do
+prop.test(
+  x = c(180, 120),   # number of "successes" in each group
+  n = c(400, 400)    # group sizes
+)
+```
+
+The output provides the estimated proportions for each group, the test statistic (chi-square for two proportions), the p-value, and a confidence interval for the difference.
+
+## Chi-Square Test of Independence
+
+Tests whether two categorical variables are statistically independent:
+
+```{r}
+#| label: chisq-test
+#| eval: false
+# Is roast preference (dark vs. light) associated with region?
+tbl <- table(survey$region, survey$prefers_dark_roast)
+result <- chisq.test(tbl)
+result
+
+# Check expected counts (all should be >= 5)
+result$expected
+
+# Standardised residuals: which cells drive the association?
+result$stdres
+```
+
+The chi-square test tells you whether an association exists; the standardised residuals tell you *where* it is. A standardised residual above ~2 indicates a cell with more observations than expected under independence; below ~−2 indicates fewer than expected. These are the cells where the association is concentrated.
+
+### Chi-Square Assumptions and Violations
+
+Chi-square has three assumptions:
+
+1. **Independence**: each observation contributes to exactly one cell (no repeated measures)
+2. **Expected cell counts ≥ 5**: the chi-square approximation is unreliable when expected cell counts are small. R will warn you when this occurs.
+3. **Adequate n**: same constraint as #2 expressed differently
+
+When expected cell counts fall below 5, two remedies are available:
+
+```{r}
+#| label: small-cells
+#| eval: false
+# Option 1: Fisher's Exact Test (for 2x2 tables)
+fisher.test(tbl)
+
+# Option 2: Collapse small categories before testing
+# (e.g., combine Prairie and BC into "Western Canada")
+survey <- survey |>
+  mutate(region_collapsed = case_when(
+    region %in% c("Prairie", "BC") ~ "Western Canada",
+    TRUE ~ region
+  ))
+chisq.test(table(survey$region_collapsed, survey$prefers_dark_roast))
+```
+
+Fisher's Exact Test is computationally exact (not based on a chi-square approximation) and appropriate for 2×2 tables with any cell size. For larger tables with small cells, collapsing categories is usually the better approach.
+
+---
+
+# Effect Sizes
+
+## Why Effect Sizes Are Essential
+
+The p-value answers: "Is there evidence against H₀?" The effect size answers: "How big is the effect?" Both questions are necessary for informed decision-making; neither alone is sufficient.
+
+The sample-size inflation problem makes this concrete:
+
+```{r}
+#| label: n-inflation-demo
+#| eval: false
+library(effectsize)
+set.seed(42)
+
+# True effect: $1 WTP difference (tiny in context of $30 price point)
+n_large <- 5000   # large sample
+ontario_large  <- rnorm(n_large, mean = 31, sd = 10)
+atlantic_large <- rnorm(n_large, mean = 30, sd = 10)
+
+# Small sample, same true effect
+n_small <- 50
+ontario_small  <- rnorm(n_small, mean = 31, sd = 10)
+atlantic_small <- rnorm(n_small, mean = 30, sd = 10)
+
+# Compare p-values
+cat("Large n p-value:", t.test(ontario_large, atlantic_large)$p.value, "\n")
+cat("Small n p-value:", t.test(ontario_small, atlantic_small)$p.value, "\n")
+
+# Compare effect sizes
+cohens_d(ontario_large, atlantic_large)
+cohens_d(ontario_small, atlantic_small)
+```
+
+The large-n test produces a highly significant p-value (p < 0.001) for a $1 WTP difference — an effect too small to inform any pricing decision. The small-n test produces a non-significant p-value (p ≈ 0.4) for the same $1 difference. The effect size (Cohen's d ≈ 0.10) is the same in both cases, correctly identifying the effect as small. **Effect size does not change with sample size. p-values do.**
+
+## Cohen's d: Effect Size for Mean Differences
+
+$$d = \frac{\bar{X}_1 - \bar{X}_2}{SD_{pooled}}$$
+
+Conventional benchmarks (Cohen, 1988):
+- d = 0.2 → small
+- d = 0.5 → medium
+- d = 0.8 → large
+
+```{r}
+#| label: cohens-d
+#| eval: false
+library(effectsize)
+cohens_d(wtp ~ region, data = survey)
+```
+
+Report Cohen's d with its 95% confidence interval. A d = 0.5 with CI [0.4, 0.6] is more useful than a d = 0.5 with CI [0.0, 1.0] — the precision of the effect size estimate matters.
+
+## Cramér's V: Effect Size for Chi-Square
+
+For contingency tables, Cramér's V measures association strength on a 0–1 scale:
+
+```{r}
+#| label: cramers-v
+#| eval: false
+cramers_v(tbl)
+```
+
+Conventional benchmarks:
+- V = 0.1 → small
+- V = 0.3 → medium
+- V = 0.5 → large
+
+## Statistical versus Managerial Significance
+
+**Statistical significance**: the p-value is below the chosen α. This tells you the data are inconsistent with H₀.
+
+**Managerial significance**: the effect is large enough to change a business decision.
+
+These are distinct and you must address both in any research report:
+
+*"The difference between Ontario and Atlantic WTP was statistically significant (p = 0.021) with a medium effect size (d = 0.52). At the lower bound of the confidence interval, the minimum plausible WTP premium ($1.23/month) generates $22 in additional revenue over a typical 18-month tenure — exceeding the estimated $18 incremental acquisition cost for Ontario. We therefore conclude the price premium is both statistically detectable and commercially meaningful."*
+
+This is the sentence to write. It combines the statistical evidence with the business implication, and it explicitly addresses the lower bound of uncertainty rather than treating the point estimate as certain.
+
+---
+
+# R Lab: Hypothesis Tests on Maritime Roast Data
+
+## Complete Lab Walkthrough
+
+```{r}
+#| label: full-lab
+#| eval: false
+library(tidyverse)
+library(psych)
+library(effectsize)
+library(broom)
+
+survey <- read_csv("data/maritime_survey.csv")
+
+# ---- 1. Demographic descriptives ----
+survey |>
+  summarise(
+    n           = n(),
+    mean_age    = mean(age, na.rm = TRUE),
+    sd_age      = sd(age, na.rm = TRUE),
+    pct_female  = mean(gender == "F", na.rm = TRUE),
+    mean_tenure = mean(tenure_months, na.rm = TRUE)
+  )
+
+# ---- 2. WTP by subscriber status ----
+# Descriptive comparison
+survey |>
+  group_by(subscriber_status) |>
+  summarise(
+    n          = n(),
+    mean_wtp   = mean(wtp, na.rm = TRUE),
+    median_wtp = median(wtp, na.rm = TRUE),
+    sd_wtp     = sd(wtp, na.rm = TRUE)
+  )
+
+# Welch t-test
+wtp_test <- t.test(wtp ~ subscriber_status, data = survey)
+tidy(wtp_test, conf.int = TRUE)
+
+# Effect size with CI
+cohens_d(wtp ~ subscriber_status, data = survey)
+
+# ---- 3. Dark roast preference by region (chi-square) ----
+tbl <- table(survey$region, survey$prefers_dark_roast)
+tbl
+
+chisq_result <- chisq.test(tbl)
+chisq_result
+
+# Check assumptions
+chisq_result$expected   # all >= 5?
+
+# Effect size
+cramers_v(tbl)
+
+# Where is the association? (standardised residuals)
+round(chisq_result$stdres, 2)
+```
+
+## The Reporting Sentence Template
+
+For every hypothesis test, write the following sentence before moving on:
+
+*"[Group A] reported [higher/lower] [outcome] (M = X, SD = Y) than [Group B] (M = X, SD = Y), [test statistic and df], p = [value], [effect size measure] = [value], 95% CI [L, U]. [Managerial implication in plain language]."*
+
+This template forces six elements: descriptive statistics for each group, the test statistic (with degrees of freedom), the p-value, the effect size, the confidence interval, and a plain-language interpretation. A report that contains this sentence for every test it reports is a report that answers the question.
+
+---
+
+# Ethics: P-Hacking, HARKing, and Selective Reporting
+
+## The False Positive Rate with Researcher Degrees of Freedom
+
+Simmons, Nelson, and Simonsohn (2011) demonstrated through simulation that apparently reasonable researcher decisions — made without pre-specification — dramatically inflate the actual false positive rate above the nominal α level:
+
+| Researcher decisions made post-hoc | Actual false positive rate |
+|---|---|
+| None (fully pre-specified) | 5% (nominal) |
+| Optional stopping at n = 20, 30, or 40 | 14% |
+| Plus choice of dependent variable (test 2, report the better one) | 24% |
+| Plus choice of outlier exclusion criterion | 39% |
+| Plus choice of covariate (with or without gender) | 60% |
+
+Most researchers who engage in these practices do so in good faith — the decisions feel justified in context. But collectively, they transform a nominal 5% error rate into an actual 60% error rate. Most "statistically significant" findings in the literature are false positives.
+
+**P-hacking** is the general term for practices that increase the probability of achieving p < α without a genuine effect: running many tests and reporting only the significant ones, trying different subsets of the data, adding or removing covariates until significance appears, or stopping data collection as soon as a significant result appears.
+
+## HARKing: Hypothesising After Results Are Known
+
+HARKing (Kerr, 1998) is the practice of running exploratory analyses, finding patterns, and then presenting those patterns as if they were confirmatory tests of pre-specified hypotheses. The problem is statistical: p-values assume that the hypothesis was specified *before* looking at the data. A hypothesis generated by looking at the data and then "tested" against that same data is not a genuine test — it is pattern description dressed up as confirmation.
+
+HARKing is particularly seductive because the researcher has genuinely found a pattern that might be real. The appropriate response is not to report it as a confirmatory finding, but to label it clearly as an exploratory finding that requires independent replication.
+
+## Selective Reporting
+
+Selective reporting — reporting only the tests that "worked" (produced significant results) and omitting the tests that did not — inflates the apparent precision of published results. If a study ran 20 tests and reports only the 3 that were significant, the reader sees three "significant" findings without knowing they were selected from 20 attempts.
+
+The appropriate practice: report all tests, or at minimum report the total number of tests conducted and apply family-wise error rate corrections for the reported subset.
+
+## Practical Standards for Marketing Research
+
+Four levels of transparency practice:
+
+**Best**: pre-register hypotheses and analysis plans before collecting data. State exact hypotheses, outcome variables, test choices, and sample size plans. Report all analyses, including null results. Deviations from the plan are clearly flagged.
+
+**Good**: label confirmatory versus exploratory analyses clearly. Confirmatory analyses (pre-specified) use standard α = 0.05. Exploratory analyses use α = 0.10 or higher and report uncorrected p-values alongside multiple-comparison corrections.
+
+**Acceptable**: report all tests performed, not just significant ones. Apply family-wise correction (Bonferroni, Benjamini-Hochberg) for any set of multiple tests. Disclose any data transformations, exclusions, and specification choices.
+
+**Not acceptable**: run 20 tests, report the 3 that were significant with α = 0.05, without correction and without mentioning the other 17.
+
+For the group project, the research proposal (due Week 9) is the informal preregistration: specify your research questions, hypotheses, outcome variables, and intended statistical tests before analysing the data. Then execute against that plan.
+
+---
+
+# References
+
+Chapman, C., & Feit, E. M. (2023). *R for marketing research and analytics* (2nd ed.). Springer.
+
+Cohen, J. (1988). *Statistical power analysis for the behavioral sciences* (2nd ed.). Lawrence Erlbaum.
+
+Cohen, J. (1994). The earth is round (p < .05). *American Psychologist, 49*(12), 997–1003.
+
+Greenland, S., Senn, S. J., Rothman, K. J., Carlin, J. B., Poole, C., Goodman, S. N., & Altman, D. G. (2016). Statistical tests, P values, confidence intervals, and power: A guide to misinterpretations. *European Journal of Epidemiology, 31*(4), 337–350.
+
+Kerr, N. L. (1998). HARKing: Hypothesizing after the results are known. *Personality and Social Psychology Review, 2*(3), 196–217.
+
+Silver, L., Stevens, R., Wrenn, B., & Loudon, D. (2021). *The essentials of marketing research*. SAGE Publications.
+
+Simmons, J. P., Nelson, L. D., & Simonsohn, U. (2011). False-positive psychology: Undisclosed flexibility in data collection and analysis allows presenting anything as significant. *Psychological Science, 22*(11), 1359–1366.

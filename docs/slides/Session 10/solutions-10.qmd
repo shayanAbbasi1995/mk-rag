@@ -1,0 +1,131 @@
+---
+title: "Solutions — Session 10: A/B Test on the Subscription-Upgrade Offer"
+subtitle: "M731 · Full worked walkthrough (companion to session-10.qmd)"
+author: "Shay Abbasi"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    embed-resources: true
+    theme: cosmo
+execute:
+  echo: true
+  eval: true
+  warning: false
+  message: false
+---
+
+## Purpose
+
+Full worked version of the Session 10 in-lab exercise: randomisation
+checks, a two-proportion test, effect sizes, and a covariate-adjusted
+logistic regression on the subscription-upgrade A/B test.
+
+## Setup
+
+```{r}
+#| label: setup
+library(tidyverse)
+
+ab <- read_csv("data/maritime_abtest.csv")
+glimpse(ab)
+count(ab, treatment)
+```
+
+## Step 1 — Randomisation check
+
+```{r}
+#| label: randomisation-check
+ab |>
+  group_by(treatment) |>
+  summarise(
+    n = n(),
+    mean_age = mean(age),
+    prop_female = mean(gender == "F"),
+    mean_tenure = mean(tenure_months),
+    .groups = "drop"
+  )
+```
+
+**Interpretation.** Age, gender split, and tenure should look
+essentially identical across arms — this dataset was generated with
+clean random assignment, so any imbalance you see is sampling noise,
+not a design flaw. In real data, a meaningful imbalance here would be
+a red flag worth investigating before trusting the treatment-effect
+estimate.
+
+## Step 2 — Two-proportion test
+
+```{r}
+#| label: proportion-test
+arm_summary <- ab |>
+  group_by(treatment) |>
+  summarise(n = n(), upgraded = sum(upgraded), upgrade_rate = mean(upgraded), .groups = "drop")
+
+arm_summary
+
+prop.test(
+  x = arm_summary$upgraded,
+  n = arm_summary$n
+)
+```
+
+**Interpretation.** The confidence interval on the difference should
+exclude zero, with the new offer showing a higher upgrade rate. Report
+both:
+
+```{r}
+#| label: lift
+control_rate <- arm_summary$upgrade_rate[arm_summary$treatment == "control"]
+treat_rate   <- arm_summary$upgrade_rate[arm_summary$treatment == "new_offer"]
+
+abs_lift <- treat_rate - control_rate
+rel_lift <- abs_lift / control_rate
+
+cat("Absolute lift:", round(100 * abs_lift, 1), "pp\n")
+cat("Relative lift:", round(100 * rel_lift, 1), "%\n")
+```
+
+**Reporting sentence.** The new offer lifted the upgrade rate from
+about `r scales::percent(control_rate, accuracy=0.1)` to
+`r scales::percent(treat_rate, accuracy=0.1)` — an absolute lift of
+roughly `r round(100*abs_lift,1)` percentage points
+(`r round(100*rel_lift,0)`% relative), a statistically significant
+and managerially meaningful improvement.
+
+## Step 3 — Covariate-adjusted logistic regression
+
+```{r}
+#| label: logistic
+fit <- glm(upgraded ~ treatment + age + tenure_months + gender, family = binomial, data = ab)
+summary(fit)
+exp(coef(fit))
+```
+
+**Interpretation.** The adjusted treatment odds ratio should closely
+match the unadjusted proportion-test result — expected in a
+well-randomised experiment, where covariates mainly tighten precision
+rather than change the point estimate. If the adjusted and unadjusted
+estimates diverged substantially, that itself would be a signal to
+recheck randomisation.
+
+## Step 4 — CEO recommendation (150 words) + one threat to flag
+
+> The new upgrade offer increased the 30-day upgrade rate by roughly
+> [X] percentage points ([Y]% relative) relative to the current offer,
+> a difference unlikely to be due to chance (p < .05) and adjusted
+> estimates from a covariate-controlled logistic regression confirm the
+> same direction and magnitude. **Recommendation**: roll out the new
+> offer broadly. **Threat to identification to flag**: this test
+> measures a 30-day upgrade outcome only — it does not tell us whether
+> subscribers who upgraded under the new offer are more likely to
+> downgrade or churn later (a novelty effect). Before a permanent
+> rollout, extend monitoring to 90-180 days to confirm the lift is
+> durable, not just a short-term response to a new offer.
+
+## Take-away for students
+
+A clean randomised experiment identifies the *causal* effect of the
+offer on 30-day upgrade — but "identified" doesn't mean
+"unconditionally actionable." Always name at least one thing the
+experiment's design can't tell you.

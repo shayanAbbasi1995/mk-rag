@@ -1,0 +1,455 @@
+---
+title: "Session 5 — Qualitative Marketing Research + Test 1"
+subtitle: "M731 Week 5 · October 7, 2026"
+author: "Shay Abbasi"
+date: "2026-10-07"
+---
+
+## Session 5 {background-color="#7A003C"}
+
+Qualitative marketing research
+
+**Test 1 today (covers Lectures 1-4)**
+
+::: {.notes}
+Compressed session. Test 1 eats ~75 min. Qualitative concept +
+workshop fits the remaining ~105 min. Be efficient - no digressions.
+:::
+
+## Today's shape (differs from usual)
+
+1. Test 1 administration (~75 min)
+2. **Break (15 min)** — test collected
+3. Qualitative research concept block (~60 min)
+4. Focus-group discussion-guide workshop (~30 min)
+5. Wrap-up (~5 min)
+
+No standalone R lab.
+
+::: {.notes}
+Warn students in the opening: today is different because of Test 1.
+Have paper copies of the test ready. Turn on the projector timer.
+:::
+
+# Part 1 — Test 1 {background-color="#7A003C"}
+
+## Test 1 logistics
+
+- Individual, closed-book (McMaster standard calculator permitted)
+- Covers Lectures 1-4: process, designs, secondary data, measurement, sampling, questionnaire design
+- Multiple choice and/or short-answer
+- ~75 minutes
+
+**Any last questions before we start?**
+
+::: {.notes}
+Take 2-3 minutes of Q&A. Do not answer content questions - only
+logistics ("how long?" "can I use pencil?"). Distribute tests. Set
+timer visible on projector.
+:::
+
+## During the test
+
+- Silence expected
+- Raise hand for logistical questions only
+- Time remaining displayed on projector
+- Submit paper (or A2L) as you finish; you may leave early
+
+::: {.notes}
+Invigilate actively - walk the room, spot-check the paper. If a
+student seems to be looking at a phone, quiet reminder. Don't turn
+this into a big deal.
+:::
+
+## Break (15 min) — after test {background-color="#FDBF57"}
+
+Collect papers. Prepare for qualitative concept block.
+
+Back at [time].
+
+::: {.notes}
+Collect all papers. Count. Bag. During the break, prep the
+qualitative slides. Have `maritime_focus.txt` transcripts open on the
+projector.
+:::
+
+# Part 2 — Qualitative research {background-color="#7A003C"}
+
+## Learning objectives (post-test portion)
+
+By the end of the qualitative segment you will be able to:
+
+- Choose among focus groups, IDIs, projective techniques, and observational methods for a research question
+- Understand the rationale for projective methods (accessing unconscious motives)
+- Plan a discussion guide for a focus group
+
+::: {.notes}
+Read out. Test-frazzled brains will need re-focusing. Read slowly,
+give a moment for each objective to land.
+:::
+
+## Why qualitative?
+
+Quantitative research answers *how many* and *by how much*.
+
+Qualitative research answers *why*, *how*, and *what does it mean*.
+
+Both are legitimate. Neither is a substitute for the other.
+
+::: {.notes}
+This isn't a rank ordering. Marketers who dismiss qualitative miss
+motivational depth. Researchers who dismiss quantitative miss
+generalisability. Serious insight work uses both.
+:::
+
+## When qualitative is right
+
+- Exploratory phase (understand a phenomenon)
+- Hypothesis generation
+- Understanding motivations, feelings, meanings
+- Studying rare or vulnerable populations
+- Concept development (new product, new positioning)
+
+Not for: quantifying, generalising to a population, causal claims.
+
+::: {.notes}
+Common misuse: treating 8 focus-group participants as representative
+of a market. They're not. Use qualitative to develop hypotheses;
+use quantitative to test them.
+:::
+
+## The main methods
+
+- **Focus groups** — 6-10 participants, moderator-led discussion, 60-90 min
+- **In-depth interviews (IDIs)** — 1 participant, 45-90 min, deep probing
+- **Projective techniques** — indirect elicitation (ZMET, word association, drawing)
+- **Observational / ethnographic** — watching behaviour in context
+
+Each has strengths, weaknesses, cost profiles.
+
+::: {.notes}
+Discuss cost: focus group ~$10K per group, IDI ~$1.5K per interview,
+ethnography ~$25K+ minimum. Projective is usually embedded in one of
+the above. This shapes when each is used commercially.
+:::
+
+## Focus groups
+
+**Strengths:**
+
+- Group dynamic surfaces reactions ("that's a great idea!" "no wait, actually...")
+- Cost-effective vs. IDIs for the same number of participants
+- Live client observation possible
+
+**Weaknesses:**
+
+- Dominant participants skew discussion
+- Social desirability bias
+- Not suited for sensitive topics
+
+::: {.notes}
+Focus groups are workhorse commercial qualitative. Client-viewing
+rooms are common - clients watch from behind one-way glass. This
+raises ethics questions (consent to observed observation). Modern
+online focus groups use platforms like Discuss.io.
+:::
+
+## In-depth interviews
+
+**Strengths:**
+
+- Deep probing, personal stories
+- Suited for sensitive topics
+- No group-dynamic contamination
+
+**Weaknesses:**
+
+- Expensive per participant
+- Interviewer skill critical
+- Longer analysis time
+
+::: {.notes}
+IDIs are the tool of choice for B2B research, professional
+respondents, sensitive topics (health, finances, family). Recruit
+carefully, prepare a detailed guide.
+:::
+
+## Projective techniques
+
+Indirect ways to elicit unconscious motivations.
+
+- **Word association:** "What comes to mind when you hear 'Starbucks'?"
+- **Sentence completion:** "People who drink Maritime Roast are ___"
+- **Third-person:** "What would your neighbour say about ___?"
+- **Storytelling:** "Tell a story about a perfect morning with coffee"
+- **ZMET (Zaltman Metaphor Elicitation Technique):** participants collect images, moderator explores metaphors
+- **Bubble drawings, personification, collages**
+
+::: {.notes}
+Projectives assume respondents can't or won't articulate their real
+feelings directly. Especially useful for brand-image work,
+premium/luxury categories, health/hygiene taboos.
+:::
+
+## Why projective? System 1 vs System 2
+
+- **System 1** (Kahneman): fast, intuitive, emotional, non-conscious
+- **System 2**: slow, deliberate, rational, conscious
+
+Direct questioning taps System 2. Projective techniques bypass System 2 to access System 1 responses.
+
+::: {.notes}
+Kahneman's Thinking, Fast and Slow. Consumer decisions are often
+System 1 (impulse, habit, emotion). Yet questionnaires assume System
+2 (rational reflection). Projectives are one workaround. Neuromarketing
+is another (Wk 5 supplementary reading in MAI).
+:::
+
+## Observational / ethnographic
+
+- **Non-participant observation:** watch shoppers in a store
+- **Participant observation:** shop alongside them
+- **Digital ethnography (netnography):** immerse in online communities
+- **Home visits, shop-alongs, service journeys**
+
+Studies actual behaviour rather than reported behaviour.
+
+::: {.notes}
+Kozinets coined netnography for online-community ethnography. Useful
+for studying brand communities, product-use context, or subcultures.
+Companies like Tribe (formerly Anthropology.io) specialise.
+:::
+
+## Digital qualitative
+
+- Online focus groups (Discuss.io, Recollective)
+- Mobile ethnography apps (dScout, Indeemo)
+- Community platforms (Verto, Alida)
+- Asynchronous discussion boards
+
+Faster, cheaper, more diverse geography — but loses in-person nuance.
+
+::: {.notes}
+COVID accelerated digital qualitative adoption. Now standard. Ask
+students: has anyone participated in an online focus group? What was
+the experience?
+:::
+
+## Sample size for qualitative
+
+- Focus groups: 3-5 groups per market segment
+- IDIs: 8-15 per segment (until saturation)
+- Ethnography: 4-8 units per segment
+
+Rule: stop when new interviews stop revealing new themes ("saturation").
+
+::: {.notes}
+Saturation is the qualitative equivalent of sample size. Not
+predetermined - determined during fieldwork. Sometimes you saturate
+at 6, sometimes at 20. Budget must allow flex.
+:::
+
+## Analysing qualitative data
+
+- **Transcribe** interviews / groups (verbatim if analysis is close)
+- **Code** systematically (assign labels to segments)
+- **Cluster** codes into themes
+- **Interpret** themes in light of research questions
+- **Report** with representative quotes + explanation
+
+CAQDAS software: NVivo, ATLAS.ti, Dedoose, MAXQDA.
+
+::: {.notes}
+Coding is the analytic move that separates rigorous qualitative from
+"we listened to the tape and here's our takeaway." Codes should be
+defined, applied consistently, and inter-rater reliability checked
+when possible.
+:::
+
+## Quotes vs. inference
+
+- **Quotes** support findings with participant voice
+- **Inference** synthesises across participants
+
+Report should have both. Quotes without inference is journalism.
+Inference without quotes is un-evidenced.
+
+::: {.notes}
+Show a sample qualitative findings slide if you have one. Good
+qualitative reports read like a mix of ethnographic vignette and
+analytic synthesis. Compare with academic qualitative writing (e.g.,
+JCR papers with extended quote blocks).
+:::
+
+## R for qualitative — a small demo
+
+```{r}
+#| eval: false
+library(readtext)
+library(tidytext)
+
+transcripts <- readtext("data/maritime_focus.txt")
+
+tokens <- transcripts |>
+  unnest_tokens(word, text) |>
+  anti_join(stop_words) |>
+  count(word, sort = TRUE) |>
+  head(20)
+
+tokens
+```
+
+R is illustrative for qualitative — real work uses CAQDAS.
+
+A fuller worked version — word frequencies, a simple sentiment pass, and
+a discussion of what text mining does and doesn't replace — is in
+**`solutions-05.qmd`** in this session's folder.
+
+::: {.notes}
+30 seconds on this. Show output. Point out most-common words -
+"coffee," "morning," "subscription." Text mining can complement, not
+replace, human coding.
+:::
+
+# Part 3 — Focus-group workshop {background-color="#7A003C"}
+
+## Workshop task (30 min)
+
+Draft a **60-minute focus-group discussion guide** for:
+
+*Maritime Roast wants to understand why 6-month subscribers churn. Design a guide for a focus group of 8 lapsed subscribers.*
+
+Structure:
+
+1. **Warm-up** (5 min): introductions, "tell us about your coffee habits"
+2. **Main sections** (40 min): 3-4 topic areas
+3. **Projective exercise** (10 min): one technique of your choice
+4. **Wrap-up** (5 min): "if you could tell the CEO one thing..."
+
+::: {.notes}
+Small teams (3-4) of students. Circulate. Push for specificity - "we
+would ask about the subscription experience" is not a question, it's
+a topic. Guide should have actual question wording.
+:::
+
+## Discussion-guide tips
+
+- Start broad ("tell us about..."), narrow gradually ("what specifically...")
+- Use projective at a strategic point — usually mid-guide
+- Prepare probes for each main question ("what makes you say that?")
+- Practice moderator neutrality — no leading, no reacting
+
+::: {.notes}
+Moderating is a skill - takes years. Some students may go on to
+moderate; most won't but will hire moderators. Knowing what a good
+guide looks like helps you evaluate suppliers.
+:::
+
+## Share out (5 min)
+
+Two or three teams present their guide highlights:
+
+- The main question you're most excited about
+- The projective exercise you chose and why
+
+::: {.notes}
+Time-box strictly - 2 min per team max. Point out one strong element
+per team. Note common gaps: no consent statement, unclear projective,
+too many warm-up questions.
+:::
+
+# Part 4 — Ethics thread (built into concept) {background-color="#7A003C"}
+
+## Qualitative ethics
+
+- **Participant vulnerability:** focus groups on sensitive topics can traumatise
+- **Group dynamics coercion:** participants may over-share to fit in
+- **Projective methods:** the line between insight and deception
+- **Recording and consent:** all recordings need explicit consent
+- **Anonymisation:** even quotes can identify (small industries, distinctive turns of phrase)
+
+::: {.notes}
+Sensitive-topic example: focus group of people with debt. Group
+setting itself creates pressure to disclose. Use IDIs instead. For
+projectives: never manipulate to gather data participants wouldn't
+knowingly provide. Debrief after any technique that involved
+concealment.
+:::
+
+## Debriefing
+
+If a technique involved concealment (rare in commercial MR), debrief:
+
+- Explain the true purpose
+- Address any distress
+- Allow withdrawal of data if requested
+- Provide referrals if needed
+
+::: {.notes}
+Rare in commercial MR - most work is fully transparent. But if you
+run a shop-along where the shopper doesn't know they're being
+observed, that requires debrief. Better: get consent up front.
+:::
+
+# Part 5 — For your project {background-color="#7A003C"}
+
+## What to think about
+
+- Even quantitative projects benefit from **qualitative supplement**
+- 3-5 informal interviews with people who know your target market can sharpen your quantitative design
+- If time permits, include a "voice-of-customer" section in your project report
+
+::: {.notes}
+For a term-length project, real qualitative fieldwork is often
+infeasible. But drafting a discussion guide as if you would run one
+is a valuable exercise and can be part of the report methodology
+section.
+:::
+
+## Draft a 3-question interview guide
+
+For your project, sketch 3 questions you would ask a customer / user / decision-maker in your chosen decision context.
+
+Not homework. Just a mental exercise this week.
+
+::: {.notes}
+Preview: some teams will find this exercise reveals blind spots in
+their quantitative design. Others will realise their project doesn't
+need qualitative at all. Both outcomes are useful.
+:::
+
+# Part 6 — Wrap-up {background-color="#7A003C"}
+
+## Week 6 preview
+
+- **Concept:** data analysis and hypothesis testing (part 1)
+- **R lab:** descriptives, t-tests, proportion tests, chi-square
+
+Prep reading: CF Ch. 3, 5, 6
+
+::: {.notes}
+Wk 6-7 covers hypothesis testing in depth - this is where the
+analytical block of the course really begins.
+:::
+
+## Test 1 return
+
+Test 1 papers returned in Week 7 (or earlier if graded).
+
+Aggregate results shared in class (no individual identification).
+
+::: {.notes}
+Aim to grade over the weekend and return Wk 6. If large class, may
+slip to Wk 7. Discuss common errors in aggregate to help students
+learn.
+:::
+
+## Thank you — see you next Wednesday
+
+`abbass44@mcmaster.ca`
+
+::: {.notes}
+Stay after for questions - students often have concerns about test
+performance. Reassure that Test 1 is 20% of the grade, not the whole
+grade.
+:::

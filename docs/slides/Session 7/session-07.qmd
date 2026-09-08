@@ -1,0 +1,485 @@
+---
+title: "Session 7 — Data Analysis & Hypothesis Testing (continued)"
+subtitle: "M731 Week 7 · October 21, 2026"
+author: "Shay Abbasi"
+date: "2026-10-21"
+---
+
+## Session 7 {background-color="#7A003C"}
+
+Data analysis and hypothesis testing (cont.)
+
+Focus: ANOVA and post-hoc, assumption checks, robust alternatives.
+
+::: {.notes}
+This continues Wk 6 without a hard break. Recap the framework quickly
+and move on. Students should already be comfortable with t-tests and
+chi-square from Wk 6.
+:::
+
+## Today's agenda
+
+1. Recap of Wk 6
+2. Beyond two groups — one-way ANOVA
+3. Post-hoc tests (Tukey HSD, etc.)
+4. Two-way ANOVA and interactions
+5. Assumption checks
+6. Non-parametric alternatives
+7. **Break (15 min)**
+8. R lab: ANOVA on `maritime_survey.csv`
+9. Ethics: multiple-comparison corrections
+10. Wrap-up
+
+::: {.notes}
+Multiple-comparison ethics fits naturally right after post-hoc
+discussion.
+:::
+
+## Learning objectives
+
+By end of session 7 you will be able to:
+
+- Run one-way and two-way ANOVA in R
+- Apply appropriate post-hoc contrasts and understand p-value adjustment
+- Diagnose assumption violations and choose robust alternatives
+- Interpret interaction effects
+
+::: {.notes}
+Interactions are the concept most students find slippery. Budget
+extra time and use a visual example.
+:::
+
+# Part 1 — ANOVA {background-color="#7A003C"}
+
+## Why ANOVA?
+
+When you have more than two groups:
+
+- Running multiple t-tests inflates Type I error
+- ANOVA gives one global test at the intended α
+
+If 3 groups → 3 pairwise t-tests → familywise α ≈ 14%, not 5%.
+
+::: {.notes}
+Motivate ANOVA. Students often ask "why not just do multiple t-tests?"
+The answer is Type I inflation. Whiteboard the math briefly if
+useful: 1 - (1-.05)³ ≈ .143.
+:::
+
+## The intuition
+
+ANOVA compares:
+
+- **Between-group** variance (differences among group means)
+- **Within-group** variance (spread inside each group)
+
+Big between + small within → F is large → likely real effect.
+
+::: {.notes}
+Draw the picture on the whiteboard: three distributions, close means
++ wide spreads = small F; distant means + narrow spreads = large F.
+Students remember pictures better than formulas.
+:::
+
+## One-way ANOVA in R
+
+```{r}
+#| eval: false
+library(car)
+
+fit <- aov(satisfaction ~ tier, data = survey)
+summary(fit)
+```
+
+Output: F-statistic, df, p-value.
+
+::: {.notes}
+Live-code. Show output. Interpret: F(2, 797)=X.X, p=P. Reject H0 that
+all tier means are equal. Then follow with post-hoc.
+:::
+
+## Post-hoc: which groups differ?
+
+```{r}
+#| eval: false
+TukeyHSD(fit)
+```
+
+Tukey's HSD adjusts for the number of comparisons.
+
+Output: pairwise differences with adjusted p-values.
+
+::: {.notes}
+Tukey is the default post-hoc for one-way ANOVA. Bonferroni is more
+conservative; Sidak, Scheffé are alternatives. Show output - which
+pair(s) drive the ANOVA rejection?
+:::
+
+## Type I / Type II / Type III sums of squares
+
+For unbalanced designs, choice of SS type matters.
+
+```{r}
+#| eval: false
+Anova(fit, type = 2)   # car::Anova
+```
+
+- **Type I:** sequential, order-dependent (rarely what you want)
+- **Type II:** each effect adjusted for main effects only
+- **Type III:** each effect adjusted for all others (SPSS default)
+
+::: {.notes}
+For balanced designs, all three give same answer. For unbalanced,
+Type II is the sensible default in most cases. Use car::Anova() not
+base anova() for cleaner output.
+:::
+
+## Two-way ANOVA
+
+Two factors at once:
+
+```{r}
+#| eval: false
+fit2 <- aov(satisfaction ~ tier * region, data = survey)
+Anova(fit2, type = 2)
+```
+
+`*` includes main effects + interaction.
+
+::: {.notes}
+Tier * region = tier + region + tier:region. Interaction is the
+"do the tier effects differ across regions?" question. Often the
+most interesting finding.
+:::
+
+## Interpreting interactions
+
+An **interaction** means the effect of one factor depends on the level of the other.
+
+- No interaction: parallel lines when you plot group means
+- Interaction: non-parallel lines
+
+Visualise with an **interaction plot**.
+
+::: {.notes}
+Draw parallel-lines vs. crossing-lines on the whiteboard. Interaction
+= "it depends" - the effect of region depends on tier, or vice versa.
+Interesting substantively but complicates communication.
+:::
+
+## Interaction plot
+
+```{r}
+#| eval: false
+library(emmeans)
+
+emm <- emmeans(fit2, ~ tier | region)
+plot(emm)
+
+# Or base plot:
+interaction.plot(survey$tier, survey$region, survey$satisfaction)
+```
+
+::: {.notes}
+`emmeans` is the modern package for estimated marginal means (aka
+"least-squares means"). Handles unbalanced designs correctly. Plot
+gives publication-ready output.
+:::
+
+# Part 2 — Assumption checks {background-color="#7A003C"}
+
+## ANOVA assumptions
+
+1. **Independence** of observations
+2. **Normality** of residuals within each group
+3. **Homogeneity** of variances (homoscedasticity)
+
+Robust to mild violations if samples are large-ish.
+
+::: {.notes}
+Independence is the killer assumption - repeated measures, clustered
+sampling, panel data all violate it. Normality matters less as n
+grows (CLT). Homoscedasticity matters more.
+:::
+
+## Check normality
+
+```{r}
+#| eval: false
+# Q-Q plot of residuals
+plot(fit, which = 2)
+
+# Shapiro test
+shapiro.test(residuals(fit))
+```
+
+QQ plot is more informative than the test — the test rejects at large n even for trivial deviations.
+
+::: {.notes}
+This is a recurring theme: with large samples, normality tests
+reject anything. Look at the plot. If the residuals hug the diagonal,
+you're fine.
+:::
+
+## Check homoscedasticity
+
+```{r}
+#| eval: false
+leveneTest(satisfaction ~ tier, data = survey)
+```
+
+Levene's test is more robust than Bartlett's.
+
+If significant → variances differ → consider Welch's ANOVA (`oneway.test`).
+
+::: {.notes}
+Welch's ANOVA doesn't assume equal variances and is a safe default.
+`oneway.test()` in base R runs Welch by default. Some statisticians
+argue Welch should be the default over standard ANOVA.
+:::
+
+## Diagnostic plots
+
+```{r}
+#| eval: false
+par(mfrow = c(2, 2))
+plot(fit)
+```
+
+Four plots:
+
+- Residuals vs fitted (check linearity, homoscedasticity)
+- Q-Q plot (check normality)
+- Scale-location (check homoscedasticity)
+- Residuals vs leverage (check influential points)
+
+::: {.notes}
+This 2x2 diagnostic panel is essential. Every ANOVA or regression
+should include a look at these. Live-code the panel. Interpret each
+quadrant briefly.
+:::
+
+# Part 3 — Non-parametric alternatives {background-color="#7A003C"}
+
+## Kruskal-Wallis (non-parametric ANOVA)
+
+When assumptions violated or data ordinal:
+
+```{r}
+#| eval: false
+kruskal.test(satisfaction ~ tier, data = survey)
+```
+
+Tests medians rather than means.
+
+::: {.notes}
+Kruskal-Wallis is the ANOVA equivalent of Wilcoxon. Less powerful than
+ANOVA when assumptions hold; more valid when they don't. Post-hoc for
+Kruskal is Dunn's test (`FSA::dunnTest`).
+:::
+
+## Friedman (non-parametric repeated-measures)
+
+For repeated measures on the same subjects:
+
+```{r}
+#| eval: false
+friedman.test(y ~ time | subject, data = long_data)
+```
+
+Non-parametric equivalent of repeated-measures ANOVA.
+
+::: {.notes}
+Rare in commercial MR unless doing longitudinal work. Mention
+briefly. If your study has pre/post/follow-up measures on the same
+customers, this is your test.
+:::
+
+## When to use non-parametric
+
+- Sample small (n < 15/group) AND distribution non-normal
+- Ordinal outcome variable
+- Extreme outliers you can't justify removing
+- Homoscedasticity badly violated
+
+Otherwise: parametric is more powerful, robust to mild violations.
+
+::: {.notes}
+Do not default to non-parametric out of caution. Parametric tests
+handle mild violations. Reserve non-parametric for real assumption
+failures.
+:::
+
+## Break — 15 minutes {background-color="#FDBF57"}
+
+::: {.notes}
+Have satisfaction × tier ANOVA ready to demo. Refresh `maritime_survey.csv`
+if lab machines have stale data.
+:::
+
+# Part 4 — R lab: ANOVA on Maritime Roast {background-color="#7A003C"}
+
+## Research question
+
+**Does satisfaction differ across the three subscription tiers?**
+
+If yes: which tiers differ from which? Are the differences big enough to matter?
+
+::: {.notes}
+Frame as a manager's question. The CEO wants to know: "should I be
+worried about satisfaction in one tier?" Statistical test answers
+"is there a difference." Effect size + practical judgement answers
+"should you care."
+:::
+
+## Lab task
+
+Using `maritime_survey.csv`:
+
+1. Descriptive statistics by tier (n, mean, SD, median)
+2. Boxplot of satisfaction by tier
+3. One-way ANOVA
+4. Diagnostic plots
+5. Tukey HSD post-hoc
+6. Effect size (η² or ω²)
+7. Short interpretation (100 words) for the CEO
+
+A fuller worked version of this ANOVA walkthrough is in
+**`solutions-07.qmd`** in this session's folder.
+
+::: {.notes}
+Give 40 min. Circulate. Common issues: forgetting to convert tier to
+factor, missing na.rm=TRUE, panicking at diagnostic plots that look
+weird (usually fine).
+:::
+
+## Effect size for ANOVA
+
+```{r}
+#| eval: false
+library(effectsize)
+eta_squared(fit)      # or omega_squared() for less-biased
+```
+
+- η² < 0.06: small
+- η² 0.06-0.14: medium
+- η² > 0.14: large
+
+::: {.notes}
+η² is proportion of variance explained. ω² is preferred (less biased
+for small samples). Report either with CI.
+:::
+
+## Reporting one-way ANOVA
+
+"Satisfaction differed significantly across subscription tiers, F(2, 797) = X.X, p < .001, η² = 0.12. Tukey HSD contrasts showed that Discovery subscribers were more satisfied than Standard (Δ = 0.4, p < .001) but not Signature (Δ = 0.1, p = .32). **Managerially**: Standard-tier satisfaction is a real gap worth investigating."
+
+::: {.notes}
+Show this template. Every ANOVA in every report should read
+approximately like this. Six elements: descriptives, F, p, effect
+size, contrasts, managerial interpretation.
+:::
+
+# Part 5 — Ethics thread {background-color="#7A003C"}
+
+## Multiple comparisons — the honest version
+
+When you run k post-hoc comparisons, familywise α inflates:
+
+- k=3 → familywise α ≈ 14% (at nominal α=.05)
+- k=10 → familywise α ≈ 40%
+- k=20 → familywise α ≈ 64%
+
+Corrections (Tukey, Bonferroni, FDR) restore control.
+
+::: {.notes}
+This is the mathematical reality. Post-hoc without correction inflates
+false-positive rates. Tukey HSD does it correctly. If your software
+gives you naked pairwise t-tests, you must correct.
+:::
+
+## Multiple comparisons — the dishonest version
+
+The same correction, applied selectively, hides p-hacking.
+
+- Ran 30 tests, reported 3 significant, corrected for those 3? **Dishonest.**
+- Ran 30 tests, reported all 30, corrected for all 30? **Honest.**
+
+The correction is about the space of tests you searched, not the tests you report.
+
+::: {.notes}
+Subtle but critical. Correction only works if applied to the true set
+of tests done. Selective correction is worse than no correction - it
+gives a false sense of rigour. This is a common form of p-hacking.
+:::
+
+## FDR (False Discovery Rate)
+
+Alternative to controlling Type I familywise:
+
+- **FWER** (Bonferroni, Tukey): control probability of *any* false positive
+- **FDR** (Benjamini-Hochberg): control expected *proportion* of false positives
+
+FDR is less conservative — appropriate for exploratory analyses with many tests.
+
+::: {.notes}
+Genomics popularised FDR when researchers were running 20,000 tests.
+For most MR work (5-30 tests), Tukey or Bonferroni is fine. FDR
+becomes attractive when you have hundreds of tests (e.g., text mining,
+survey item analysis).
+:::
+
+## What to actually do
+
+- Pre-specify the tests you'll run (before looking at data)
+- Report all tests, not just significant ones
+- Apply correction appropriate to the total number of tests
+- If you post-hoc explore, flag it: "exploratory, not confirmatory"
+
+::: {.notes}
+This is the discipline. Not perfect - real analysis is iterative -
+but flagging exploratory vs. confirmatory keeps you honest.
+:::
+
+# Part 6 — For your project {background-color="#7A003C"}
+
+## Team analytical work begins
+
+By end of this week:
+
+- Data-cleaning script complete
+- Hypotheses locked (in writing, dated)
+- Test choices documented
+- Preliminary results computed
+
+Project proposal due in 2 weeks (Wk 9, Nov. 4).
+
+::: {.notes}
+"Hypotheses locked" is the informal preregistration. Teams that write
+their hypotheses before running tests avoid HARKing accidentally. Push
+them to do it in writing, dated.
+:::
+
+# Part 7 — Wrap-up {background-color="#7A003C"}
+
+## Week 8 preview
+
+- **Concept:** marketing scales — Likert, semantic differential, reliability, validity
+- **R lab:** Cronbach's alpha on `maritime_survey.csv`
+
+Prep reading: CJ Ch. 10; classic papers Churchill 1979 and Rossiter 2002 (optional but recommended).
+
+::: {.notes}
+Preview: Wk 8 shifts from analysis to measurement (going backwards
+in the process, but that's the outline sequence). Frame this as "we
+know how to test - now let's make sure the things we're testing are
+measured reliably."
+:::
+
+## Thank you — questions?
+
+`abbass44@mcmaster.ca`
+
+::: {.notes}
+Stay for any follow-up questions.
+:::

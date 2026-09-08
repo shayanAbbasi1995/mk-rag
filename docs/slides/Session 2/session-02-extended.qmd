@@ -1,0 +1,446 @@
+---
+title: "Session 2 — Secondary Data & Research Designs"
+subtitle: "M731 Week 2 · September 16, 2026 · Comprehensive Reading Notes"
+author: "Shay Abbasi"
+date: "2026-09-16"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    theme: cosmo
+    self-contained: true
+---
+
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE, message = FALSE, warning = FALSE)
+```
+
+# Where We Are in the MR Process
+
+Session 2 occupies Step 2 of the seven-step marketing research process (choosing the research design) while simultaneously introducing a technique that short-circuits the early steps — secondary data. Secondary data is data that was collected by someone else, for some other purpose. When it answers your question, it eliminates the need to design and field primary research. Even when it does not answer the question directly, it frames the context within which primary research is designed.
+
+Recall the seven steps:
+
+1. Define the problem
+2. **Choose the research design** ← today's focus
+3. Design the sampling plan
+4. Design the data-collection instrument
+5. Collect the data (**secondary data partially or fully substitutes for Steps 3–5** ← also today)
+6. Analyse the data
+7. Report and recommend
+
+By the end of this session, you should be able to identify major sources of secondary data, evaluate their fitness for a specific purpose, distinguish the three research design families (exploratory, descriptive, causal), and produce publication-quality figures with `ggplot2`.
+
+---
+
+# Secondary Data
+
+## Primary versus Secondary Data
+
+**Primary data** is collected by you, for this specific research question, right now. **Secondary data** was collected by someone else, for some other purpose, and is now available for your use.
+
+The practical rule: always ask "does secondary data already answer this?" before designing a primary data collection effort. Every year, researchers design expensive surveys when a Statistics Canada table already answers the question — cheaper, faster, and usually with higher methodological rigour than a one-off study.
+
+Secondary data belongs at the *beginning* of every research project, not as an afterthought:
+
+- It sizes the market and frames the competitive context, which are necessary inputs for designing the primary study
+- It often answers descriptive questions outright, eliminating fieldwork entirely
+- It identifies gaps that primary research must fill
+- It provides benchmarks: if your primary data contradicts a large-scale secondary source, one of them is wrong and you need to investigate why
+
+## Types of Secondary Data
+
+Secondary data comes from several categories of source, each with different strengths:
+
+**Public and open-access data** is produced by government statistical agencies, central banks, and international organisations. It is usually free, methodologically rigorous, and longitudinal. Statistics Canada, the Bank of Canada, and the federal Open Government portal (`open.canada.ca`) are the most important Canadian sources.
+
+**Commercial and syndicated data** is produced by private firms and sold via subscription. Nielsen and Circana/IRI provide scanner data (point-of-sale transactions aggregated by product, store, and week). Kantar and Ipsos produce syndicated brand health trackers. Environics Analytics provides geodemographic segmentation (PRIZM). Mintel and Euromonitor produce category-level market reports. These are expensive but often essential for competitive context and market sizing.
+
+**Internal data** — sometimes called "first-party data" — is data the organisation has collected through its own operations: CRM records, point-of-sale transactions, loyalty program data, web analytics. This is often the richest source for questions about your own customers but provides no information about non-customers or the broader market.
+
+**Academic and institutional research** includes published datasets from academic studies (ICPSR archive, journal supplements), government surveys with restricted-access microdata, and industry association reports.
+
+**Web and social media data** includes scraped review data, social listening data, and publicly available APIs. Quality is highly variable and ethical constraints are real — Terms of Service usually prohibit commercial scraping, and even legal scraping can raise privacy concerns (see Ethics section below).
+
+## Statistics Canada: The Most Authoritative Canadian Source
+
+For any marketing question with a Canadian context, Statistics Canada is the starting point. Key datasets include:
+
+| Dataset | Content | Frequency | Access |
+|---|---|---|---|
+| Survey of Household Spending (SHS) | Household expenditure by category, province, income | Annual | Free (PUMF) |
+| Labour Force Survey (LFS) | Employment, income, demographics by province | Monthly | Free (CANSIM) |
+| Retail Trade Survey | Monthly retail sales by sector and province | Monthly | Free |
+| Canadian Community Health Survey (CCHS) | Health behaviour including food and beverage consumption | Annual | Free (PUMF) |
+| Canadian Internet Use Survey | Internet access and online behaviour | Occasional | Free |
+
+PUMF = Public Use Microdata File (individual-level, anonymised for disclosure protection). CANSIM refers to Statistics Canada's data table system, accessed at `www150.statcan.gc.ca`. McMaster Library provides access to the PUMF files for restricted datasets.
+
+For Maritime Roast's Ontario entry question, two tables are immediately relevant. The Retail Trade Survey tells us the total scale of the coffee and grocery retail market in Ontario. SHS Table 11-10-0125 tells us household spending on "coffee and tea" by province — a proxy for the total addressable market before narrowing to the specialty subscription segment.
+
+### Accessing Statistics Canada Data in R
+
+The `cansim` package provides direct programmatic access to Statistics Canada's data tables, returning tidy data frames ready for analysis:
+
+```{r}
+#| label: cansim-example
+#| eval: false
+# install.packages("cansim")
+library(cansim)
+library(tidyverse)
+
+# Table 11-10-0125-01: Survey of Household Spending — food expenditures by province
+food_spending <- get_cansim("11-10-0125-01")
+
+# Filter for coffee and tea, Ontario
+coffee_on <- food_spending |>
+  filter(
+    GEO == "Ontario",
+    grepl("Coffee", `Goods and services`, ignore.case = TRUE)
+  ) |>
+  select(REF_DATE, GEO, `Goods and services`, VALUE)
+
+coffee_on
+```
+
+If the API is unavailable, download the CSV directly from `www150.statcan.gc.ca` by searching the table number. The downloaded CSV can be read with `read_csv()`. The API approach is preferable because it is reproducible — anyone who runs the code gets the same data pull.
+
+## Evaluating Secondary Data: The Fitness-for-Purpose Test
+
+Finding a secondary dataset is only the first step. Evaluating whether it actually answers your question requires five criteria:
+
+1. **Coverage** — does the population the data represents match your target population?
+2. **Timing** — is the data current enough for the decision at hand?
+3. **Definition** — are the variables measured the way you need?
+4. **Method** — how was the data collected? Is the methodology credible and free of obvious bias?
+5. **Reliability** — is the source credible and independent?
+
+A worked evaluation for the Maritime Roast Ontario-entry question:
+
+**Question**: Does Statistics Canada SHS table 11-10-0125 answer "how much do Ontario households spend on specialty coffee?"
+
+| Criterion | Evaluation |
+|---|---|
+| Coverage | All Ontario households surveyed — good. Does not break out specialty vs. regular vs. instant coffee — problem. |
+| Timing | Annual release with 2–3 year lag. Moderate concern for a fast-moving specialty category. |
+| Definition | "Coffee and tea" combined. Instant, ground, specialty, and pods are not separated. |
+| Method | Probability sample, household diary method — high credibility. |
+| Reliability | Statistics Canada — the authoritative source in Canada. |
+
+**Verdict**: Use StatsCan SHS for overall market sizing and trend benchmarking. It cannot answer the specialty-subscription question — that requires primary research.
+
+## Strengths and Weaknesses of Secondary Data
+
+**Strengths**: Secondary data is fast (no fieldwork delay), cheap (often free), longitudinal (many StatsCan series go back decades), and cross-comparable (the same measure across regions or years). The longitudinal and comparative properties are particularly valuable: tracking household coffee spending from 2009 to 2024 reveals long-run trends that no single-study primary research could establish.
+
+**Weaknesses**: Secondary data was collected for someone else's question, so the variable definitions, population coverage, and measurement instruments may not match yours. It is often stale (annual releases lag by 1–3 years). It rarely goes into the specifics you need. And it may have unobserved biases in its collection methodology.
+
+The practical heuristic: use secondary data to *size* the market and *frame* the question. Use primary data to *answer* it. Secondary data tells you the industry is $2B, growing at 3%, with four major players. Primary data tells you why your specific subscribers are churning.
+
+---
+
+# Research Designs
+
+## The Three Families
+
+Three research design families organise all of marketing research. The choice among them is determined entirely by the research question — not by researcher preference, methodological fashion, or what the client finds most impressive.
+
+**Exploratory research** is used when the phenomenon is poorly understood and hypotheses are unclear. The goal is to understand *what is going on*, not to quantify or prove anything. The outputs are refined research questions and testable hypotheses. Common methods include qualitative interviews, focus groups, secondary data scans, and expert consultation.
+
+**Descriptive research** is used when the question is known and the goal is to quantify or profile. The outputs are frequencies, means, trends, segmentation profiles, and cross-tabulations. Most commercial marketing research is descriptive.
+
+**Causal research** is used when the goal is to prove that X causes Y, not merely that they co-vary. The outputs are causal estimates — the effect of one variable on another, with an identified reason why confounders have been controlled. Randomised experiments (A/B tests) are the gold standard; quasi-experimental methods (difference-in-differences, regression discontinuity) are used when randomisation is not possible.
+
+These are not rungs on a ladder. You do not need to "start exploratory and progress to causal." Many descriptive studies stand entirely alone. Some causal studies are designed without a prior exploratory phase. The design serves the question.
+
+## A Decision Framework for Choosing Among Designs
+
+| Decision | Best design |
+|---|---|
+| "What is happening in the market?" | Descriptive (secondary + survey) |
+| "Why are customers leaving?" | Exploratory (qualitative) then Descriptive |
+| "Does new packaging lift sales?" | Causal (experiment) |
+| "What segments exist in our market?" | Descriptive (segmentation on survey) |
+| "Can we trust our survey instrument?" | Exploratory (cognitive interviews) |
+| "Did our campaign cause the sales lift?" | Causal (quasi-experiment or holdout group) |
+
+**The most common failure mode in applied marketing research is design mismatch**: using a descriptive survey to answer a causal question, or running an A/B test on a question that is still in the exploratory phase. Experiments are fashionable; running one before you understand what to vary wastes budget and typically produces null results for the wrong reasons.
+
+## Exploratory Research in Depth
+
+Exploratory research ranges from informal secondary scans to highly rigorous qualitative methodology. The most influential academic framework is **grounded theory** (Glaser & Strauss, 1967), which provides a systematic method for building theory from data rather than testing pre-existing theory against data:
+
+- Start with no predetermined hypotheses
+- Collect data (interviews, observations) and code it inductively
+- Let categories emerge from the data rather than being imposed
+- Reach **theoretical saturation** when new data adds no new categories
+- Build theory upward from the data
+
+Commercial MR rarely uses grounded theory in its full form (it is time-intensive and not well-suited to client-driven timelines), but its core logic underlies all good qualitative practice: listen first, theorise second. For Maritime Roast, the implication is direct: before designing a churn survey, conduct 10–15 depth interviews with churned subscribers to understand why they left. The survey should then quantify what the interviews reveal — not guess at it.
+
+## Descriptive Research in Depth
+
+Descriptive research falls into two important subtypes based on timing:
+
+**Cross-sectional designs** take a single snapshot of the population at one point in time. They are cheaper, faster, and simpler to administer. They cannot track individual change over time. Best for: market sizing, segmentation, one-time profiling.
+
+**Longitudinal (panel) designs** measure the same respondents at multiple points in time. They can track individual attitude and behaviour change, identify who switches and when, and estimate individual-level trajectories. They are more expensive and susceptible to panel conditioning (respondents who have been surveyed repeatedly start responding differently from fresh samples) and attrition (respondents who drop out of the panel over time may do so non-randomly).
+
+For Maritime Roast:
+
+- *Cross-sectional*: "What proportion of Ontario consumers are aware of Maritime Roast?" — one-time sizing question.
+- *Longitudinal*: "How does subscriber satisfaction change over the first six months?" — requires tracking the same individuals across waves.
+
+## Causal Research and the Fundamental Problem of Causation
+
+The core challenge in causal research was formalised by Donald Rubin (1974) in what is now called the **Rubin Causal Model** or **potential outcomes framework**. For any individual, you can observe only *one* potential outcome: either the world where they received the treatment, or the world where they did not. You never observe both simultaneously for the same person. This is the fundamental problem of causal inference.
+
+Consider this scenario: email recipients spend 20% more than non-recipients. Three completely different stories are consistent with that observation:
+
+1. The email caused them to spend more — a genuine causal effect
+2. High-spending customers were more likely to opt into the email list — selection bias
+3. A third variable (tenure, loyalty level) drives both email subscription and spending — confounding
+
+Without randomisation, you cannot distinguish these three explanations. **Randomisation** solves the problem by creating two groups that are identical in expectation before treatment — the only systematic difference between them is whether they received the email. Any difference in outcomes can then be attributed to the treatment.
+
+This is why A/B tests are called the "gold standard" for causal claims. It is also why any time a marketing manager says "our email campaign lifted sales 20%," the correct response is: "Compared to what? Was there a holdout group?" If not, that 20% is almost certainly an overestimate — and possibly not causal at all.
+
+## The Cost of Research
+
+Research design choices have real budget implications. Rough Canadian market figures for 2025:
+
+| Study type | Cost range | Timeline |
+|---|---|---|
+| Focus group (10 participants, 1 city) | $6–15K | 3–6 weeks |
+| Online survey (n = 500) | $10–25K | 3–4 weeks |
+| A/B test (in-house, existing website) | $2–8K | 2–4 weeks |
+| Ethnographic study | $20–80K | 6–12 weeks |
+| Secondary syndicated data | Subscription | Immediate |
+
+The single biggest cost driver in primary research is **incidence rate** — the fraction of the general population that qualifies for your study through the screener. A study targeting "adult Ontarians who drink coffee" has ~70% incidence; a study targeting "Ontarians who currently subscribe to a specialty food box" has ~12% incidence. At 12% incidence, the panel provider must screen roughly 8 people to find 1 qualifying respondent, multiplying the effective cost per complete by approximately 8 relative to a 100%-incidence study.
+
+---
+
+# R Lab: Data Visualisation with ggplot2
+
+## The Grammar of Graphics
+
+`ggplot2` is R's most powerful data visualisation library. It implements Leland Wilkinson's *Grammar of Graphics* (1999), the insight that every statistical graphic can be described using the same seven components:
+
+| Component | ggplot2 equivalent |
+|---|---|
+| Data | `ggplot(data = ...)` |
+| Aesthetics (mappings) | `aes(x = ..., y = ..., colour = ...)` |
+| Statistics | `stat_*()` functions |
+| Scales | `scale_*()` functions |
+| Coordinate system | `coord_*()` functions |
+| Facets | `facet_wrap()`, `facet_grid()` |
+| Themes | `theme_*()` functions |
+
+Layers are added with `+`. The power of the grammar is composability: any grammar component can be mixed with any other. There is no fixed list of "chart types" — there is a generative system that can produce any chart type from its components.
+
+## A Complete ggplot2 Workflow
+
+The lab dataset is `statscan_coffee.csv` — household coffee spending by province from 2019 to 2024, derived from Statistics Canada Table 11-10-0125.
+
+### Step 1: Inspect Before Plotting
+
+Always describe the data before visualising it. A table answers precision questions; a chart answers pattern questions. Use both.
+
+```{r}
+#| label: inspect-coffee
+#| eval: false
+library(tidyverse)
+
+coffee <- read_csv("data/statscan_coffee.csv")
+
+# Basic structure
+glimpse(coffee)
+dim(coffee)
+n_distinct(coffee$province)
+range(coffee$year)
+colSums(is.na(coffee))
+
+# Summary table: mean and latest spending by province
+coffee |>
+  group_by(province) |>
+  summarise(
+    mean_spending  = mean(spending),
+    sd_spending    = sd(spending),
+    latest_year    = max(year),
+    latest_spending = spending[year == max(year)]
+  ) |>
+  arrange(desc(latest_spending))
+```
+
+### Step 2: A Time-Series Line Plot
+
+```{r}
+#| label: coffee-line-plot
+#| eval: false
+ggplot(coffee, aes(x = year, y = spending, colour = province)) +
+  geom_line(linewidth = 0.8) +
+  geom_point(size = 2) +
+  labs(
+    title   = "Household coffee spending by province, 2019–2024",
+    x       = "Year",
+    y       = "Annual spending ($ per household)",
+    colour  = "Province",
+    caption = "Source: Statistics Canada, Table 11-10-0125"
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+When interpreting this chart, keep the Maritime Roast decision in mind. Look for: the Ontario-vs.-Atlantic gap (how much larger is Ontario per-household spending?), the trend direction (growing or declining?), any COVID-era disruption (2020–2021), and variance across provinces (are all provinces tracking together or diverging?). The managerial translation should be a sentence like: "Ontario households spend $X more per year on coffee than Atlantic Canadian households, and the gap has been growing at Y% annually."
+
+### Step 3: A Bar Chart for Cross-Sectional Comparison
+
+```{r}
+#| label: coffee-bar-chart
+#| eval: false
+coffee |>
+  filter(year == 2024) |>
+  ggplot(aes(x = fct_reorder(province, spending), y = spending)) +
+  geom_col(fill = "#7A003C") +
+  geom_text(
+    aes(label = scales::dollar(spending, accuracy = 1)),
+    hjust  = -0.1,
+    size   = 3.5,
+    colour = "grey30"
+  ) +
+  coord_flip(clip = "off") +
+  expand_limits(y = max(coffee$spending[coffee$year == 2024]) * 1.15) +
+  labs(
+    title   = "2024 household coffee spending by province",
+    x       = NULL,
+    y       = "Annual spending per household ($)",
+    caption = "Source: Statistics Canada"
+  ) +
+  theme_minimal() +
+  theme(panel.grid.major.y = element_blank())
+```
+
+`fct_reorder()` sorts the axis by spending value — without it, provinces appear alphabetically, which communicates nothing about ranking. Direct data labels (`geom_text`) eliminate the need to read the axis values precisely — a key technique for presentation charts.
+
+### Step 4: Small Multiples (Facets)
+
+```{r}
+#| label: coffee-facets
+#| eval: false
+ggplot(coffee, aes(x = year, y = spending)) +
+  geom_line(linewidth = 0.8) +
+  geom_point(size = 1.5) +
+  facet_wrap(~ province, ncol = 4) +
+  labs(
+    title = "Coffee spending trends by province, 2019–2024",
+    y     = "Spending per household ($)"
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text         = element_text(face = "bold"),
+    panel.grid.minor   = element_blank()
+  )
+```
+
+`facet_wrap()` creates one panel per province, making it easy to compare trend shapes without the colour-collision problem of 10 overlapping lines.
+
+## Translating a Chart to a Management Memo
+
+Producing a chart is the easy half of the analysis. The hard half is translating the visual pattern into a management-relevant claim. A good secondary-data memo for Maritime Roast's CEO follows this structure:
+
+> **To:** Maritime Roast CEO
+> **Re:** Statistics Canada coffee spending data — Ontario entry decision
+>
+> Statistics Canada's Survey of Household Spending (Table 11-10-0125) shows that Ontario households spent approximately $X per year on coffee and tea in 2024, compared to $Y in Nova Scotia — a gap of approximately Z%. Ontario spending has grown at approximately P% annually from 2019–2024.
+>
+> **Usefulness for our decision**: this data is strong for overall market sizing (Ontario is approximately 4× the Atlantic Canada coffee market in population terms, with proportionally higher per-household spending) and for confirming a growing category. It is weak on category specificity: "coffee and tea" aggregates instant coffee, pods, ground, and specialty roasts — segments with very different margins and subscriber profiles. Maritime Roast competes in the specialty subscription sub-segment, whose size cannot be inferred from this aggregate.
+>
+> **Recommendation**: use Statistics Canada data to size the total addressable market and frame the competitive context. Commission primary research to size the specialty subscription sub-segment and identify Ontario consumers who match the Maritime Roast subscriber profile.
+
+---
+
+# Ethics: The Responsible Use of Secondary Data
+
+## Attribution and Terms of Use
+
+Secondary data carries obligations even when it is free. Three considerations apply to every secondary source you use:
+
+**Attribution**: always cite the source at a granularity that allows another researcher to retrieve the exact same data. "Statistics Canada coffee data" is not retrievable. "Statistics Canada, Survey of Household Spending, Table 11-10-0125-01, accessed September 2026 from https://www150.statcan.gc.ca" is.
+
+**Terms of use**: even free data has licence terms. Statistics Canada's data is released under a modified Creative Commons Attribution licence (CC-BY 2.5 Canada) — you may use it freely with attribution. Commercial reports (Mintel, Euromonitor) have licences that restrict redistribution. Web-scraped data is subject to the platform's Terms of Service, which typically prohibit commercial scraping.
+
+**Currency and accuracy**: using stale data without flagging it can mislead decision-makers. If the most recent StatsCan table is two years old, say so — and consider whether the market could have changed materially in that window.
+
+## The Aggregation Privacy Problem (The Mosaic Effect)
+
+A subtle but important ethical risk in secondary data work: combining multiple non-sensitive public datasets can create sensitive private inferences. This is called the **mosaic effect**.
+
+A concrete example: a municipality publishes business licence data by street address and type. A hospital publishes a community health survey with HIV rates by postal code. Cross-tabulating business type (HIV testing clinic) + postal code + health survey rates can allow individual-level health status inferences — even though no individual-level data was ever combined.
+
+Statistics Canada's cell-suppression rules for small geographic areas exist precisely to prevent this. When you produce fine-grained cross-tabulations from secondary data, ask: could a combination of variables in this table identify an individual or a small group? If yes, aggregate further or suppress the small cells.
+
+## Statista versus Original Sources
+
+Statista is a meta-aggregator — it curates statistics from original sources (industry reports, government surveys, company filings) and presents them in a uniform format. It is a useful starting point for scoping a market. It is not a primary source.
+
+The problem: Statista strips out methodology, sample sizes, and quality flags that would let you evaluate whether a number is reliable. The "coffee market is worth $X billion" claim on Statista typically originates from an industry association press release based on member estimates — not an independent statistical survey.
+
+Build this habit: when you find a number on Statista, click through to the original source and check (1) the sample size and method, (2) the definition of the market, (3) the data collection date, and (4) who funded the study. Then cite the original source, not Statista.
+
+---
+
+# The Canadian Secondary Data Landscape
+
+## Government Sources (Free)
+
+- **Statistics Canada** (`www.statcan.gc.ca`) — the canonical source for all Canadian demographic, economic, and social statistics
+- **Bank of Canada** (`www.bankofcanada.ca`) — interest rates, exchange rates, financial statistics
+- **Open Government** (`open.canada.ca`) — federal datasets across all departments
+- **Provincial open data portals** — Ontario Data Catalogue, BC Data Catalogue, etc.
+
+## Commercial Sources (Subscription)
+
+- **Nielsen Canada** — retail measurement (scanner data by store, week, SKU)
+- **Circana** (formerly IRI + NPD) — scanner data + consumer panel (Homescan)
+- **Environics Analytics** — PRIZM geodemographic segmentation (67 lifestyle segments by postal code)
+- **Kantar** — brand tracking, media measurement
+- **Ipsos** — syndicated brand health, public affairs research
+
+**Scanner data** (Nielsen, Circana retail measurement) captures every UPC scan at point of sale, aggregated by store, week, and SKU. It tells you category sales volume, price, distribution coverage, and promotional uplift. It does not tell you who bought it (for that, you need panel data) or why (for that, you need a survey). For Maritime Roast, scanner data would cover the retail coffee category but not the direct-to-consumer subscription segment, which is off-scanner.
+
+**Environics PRIZM** assigns every Canadian postal code to one of 67 lifestyle segments (with names like "Boho-Metro Millennials" or "Heartland Families") based on demographics, psychographics, and purchase behaviour. This allows Maritime Roast to identify which Ontario postal codes have high concentrations of their target segments — useful for retail site selection, media targeting, and direct mail.
+
+---
+
+# The Group Project: What to Do This Week
+
+## Starting the Secondary Data Audit
+
+For your project company, conduct an informal (not graded) secondary data audit this week:
+
+1. **Identify the market category** your company competes in
+2. **Find two Statistics Canada tables** relevant to the category
+3. **Find one commercial or industry source** (Statista, an industry association, Mintel if accessible)
+4. **Apply the fitness-for-purpose test** to each source: coverage, timing, definition, method, reliability
+5. **Note the gaps**: what does the secondary data *not* tell you that your primary survey will need to answer?
+
+This exercise becomes the "secondary data review" section of your Week 4 proposal. Doing it informally now reduces proposal-week stress.
+
+---
+
+# References
+
+Chapman, C., & Feit, E. M. (2023). *R for marketing research and analytics* (2nd ed.). Springer.
+
+Glaser, B. G., & Strauss, A. L. (1967). *The discovery of grounded theory: Strategies for qualitative research*. Aldine.
+
+Narayanan, A., & Shmatikoff, V. (2008). Robust de-anonymization of large sparse datasets. *Proceedings of the 2008 IEEE Symposium on Security and Privacy*, 111–125.
+
+Rubin, D. B. (1974). Estimating causal effects of treatments in randomized and nonrandomized studies. *Journal of Educational Psychology, 66*(5), 688–701.
+
+Silver, L., Stevens, R., Wrenn, B., & Loudon, D. (2021). *The essentials of marketing research*. SAGE Publications.
+
+Wilkinson, L. (1999). *The grammar of graphics*. Springer.

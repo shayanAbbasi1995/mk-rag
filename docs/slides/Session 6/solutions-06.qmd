@@ -1,0 +1,124 @@
+---
+title: "Solutions — Session 6: Descriptives and Hypothesis Tests"
+subtitle: "M731 · Full worked walkthrough (companion to session-06.qmd)"
+author: "Shay Abbasi"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    embed-resources: true
+    theme: cosmo
+execute:
+  echo: true
+  eval: true
+  warning: false
+  message: false
+---
+
+## Purpose
+
+Full worked version of the Session 6 in-lab exercise: descriptives,
+a two-sample t-test with effect size, and a chi-square test on
+`maritime_survey.csv`.
+
+## Setup
+
+```{r}
+#| label: setup
+library(tidyverse)
+library(psych)
+library(effectsize)
+
+survey <- read_csv("data/maritime_survey.csv")
+```
+
+## Step 1 — Subscriber demographics
+
+```{r}
+#| label: demographics
+describe(survey$age)
+
+survey |>
+  summarise(
+    n = n(),
+    prop_female = mean(gender == "F"),
+    mean_tenure = mean(tenure_months),
+    median_tenure = median(tenure_months)
+  )
+```
+
+**Interpretation.** The subscriber base skews slightly female
+(~52%), averages 39 years old, with tenure distributed as expected for
+a subscription business (a long right tail of loyal long-tenure
+subscribers on top of a larger recent-signup base).
+
+## Step 2 — WTP: current vs. lapsed subscribers
+
+```{r}
+#| label: wtp-test
+t.test(wtp ~ subscriber_status, data = survey)
+```
+
+```{r}
+#| label: wtp-effect-size
+cohens_d(wtp ~ subscriber_status, data = survey)
+```
+
+**Reporting sentence.** Current subscribers reported higher WTP
+(M ≈ \$22.07) than lapsed subscribers (M ≈ \$19.51), a statistically
+significant difference (p < .001) with a moderate-to-large effect
+(Cohen's d ≈ 0.6-0.7 depending on the draw). **Managerially**: lapsed
+subscribers were already price-sensitive before they churned — pricing
+and perceived value, not just delivery logistics, are worth
+investigating as churn drivers.
+
+## Step 3 — WTP by region (the slide-deck demo, expanded)
+
+```{r}
+#| label: wtp-region
+t.test(wtp ~ region, data = survey)
+cohens_d(wtp ~ region, data = survey)
+```
+
+**Interpretation.** Atlantic subscribers show higher stated WTP than
+Ontario prospects, with a small-to-moderate effect. This matters for
+the Ontario-entry pricing conversation: an entry-tier price point may
+be worth testing in Ontario rather than importing Atlantic pricing
+directly.
+
+## Step 4 — Dark-roast preference by region (chi-square)
+
+```{r}
+#| label: chisq
+tbl <- table(survey$region, survey$prefers_dark_roast)
+tbl
+chisq.test(tbl)
+cramers_v(tbl)
+```
+
+**Interpretation.** Report both the chi-square p-value (is there an
+association at all?) and Cramér's V (how strong is it?). A
+statistically significant but small-V association means region
+explains some, but not most, of the variation in roast preference —
+useful context before recommending a region-specific product mix.
+
+## Step 5 — CEO recommendation (≤150 words)
+
+> Current subscribers report meaningfully higher willingness-to-pay
+> than lapsed subscribers (\$22 vs. \$20, p < .001, moderate effect),
+> suggesting price sensitivity plays a real role in the churn we're
+> trying to reduce. Separately, Ontario prospects show slightly lower
+> stated WTP than our existing Atlantic base — a signal to test a
+> lower entry-tier price point rather than launch at Atlantic pricing.
+> Roast preference differs modestly by region but not enough to justify
+> a region-specific product line on this evidence alone. Recommendation:
+> prioritize a churn-focused pricing/value review before the Ontario
+> launch, and pilot an Ontario entry-tier price point rather than a
+> new product line.
+
+## Take-away for students
+
+Every hypothesis test in this course should end with the six-part
+sentence: **descriptives → test statistic → p → effect size → CI →
+managerial interpretation.** The CEO reads the last clause; the rest
+is your evidence for it.

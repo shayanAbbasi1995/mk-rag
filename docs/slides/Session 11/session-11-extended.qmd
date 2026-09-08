@@ -1,0 +1,587 @@
+---
+title: "Session 11 — Regression: Identifying Drivers of Marketing Outcomes"
+subtitle: "M731 Marketing Research · Comprehensive Lecture Notes"
+author: "Shay Abbasi"
+date: "2026-11-18"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    theme: cosmo
+    self-contained: true
+---
+
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE, message = FALSE, warning = FALSE)
+```
+
+# Linear Regression: The Conceptual Foundation
+
+## What Regression Does
+
+Linear regression estimates the relationship between a dependent variable (outcome, Y) and one or more independent variables (predictors, X), while holding all other predictors constant. The general model is:
+
+$$Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \cdots + \beta_k X_k + \varepsilon$$
+
+where $\beta_0$ is the intercept (the expected value of Y when all predictors are zero), $\beta_j$ is the partial regression coefficient for predictor $X_j$ (the expected change in Y for a one-unit change in $X_j$, holding all other predictors constant), and $\varepsilon$ is the error term capturing variation in Y not explained by the model.
+
+The phrase "holding all other predictors constant" is the entire interpretive payload of multiple regression. A regression coefficient does not describe the raw association between X and Y — it describes the association between X and Y after removing the variation in Y attributable to all other predictors in the model. This is what distinguishes regression from a simple correlation: it partials out confounders.
+
+## The OLS Estimator
+
+Ordinary Least Squares (OLS) estimates the coefficients by minimising the sum of squared residuals (the squared differences between observed and predicted values):
+
+$$SSR = \sum_{i=1}^{n} (Y_i - \hat{Y}_i)^2 = \sum_{i=1}^{n} (Y_i - \hat{\beta}_0 - \hat{\beta}_1 X_{1i} - \cdots - \hat{\beta}_k X_{ki})^2$$
+
+The closed-form matrix solution is $\hat{\boldsymbol{\beta}} = (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\mathbf{Y}$, where X is the design matrix (n × (k+1) matrix with a column of 1s for the intercept and columns for each predictor).
+
+The Gauss-Markov theorem guarantees that OLS is BLUE — the Best Linear Unbiased Estimator — under five classical assumptions: linearity in parameters, independence of observations, homoscedasticity (constant error variance), zero conditional mean of errors ($E[\varepsilon|X] = 0$), and no perfect multicollinearity. Crucially, normality of errors is not required for unbiasedness or consistency — it is only required for exact finite-sample inference (t-tests, F-tests on coefficients). With large samples, the Central Limit Theorem ensures that the sampling distribution of $\hat{\beta}$ is approximately normal regardless of the distribution of $\varepsilon$.
+
+## Running Linear Regression in R
+
+```{r}
+#| label: ols-basic
+
+library(tidyverse)
+library(broom)
+
+survey <- read_csv("data/maritime_survey.csv") |>
+  mutate(
+    tier   = factor(tier, levels = c("Standard", "Signature", "Discovery")),
+    region = factor(region)
+  )
+
+# Basic regression: satisfaction as a function of demographics and tier
+fit <- lm(satisfaction ~ tenure_months + tier + region + age,
+          data = survey)
+
+# Coefficient table (tidy format)
+tidy(fit, conf.int = TRUE)
+
+# Model-level statistics
+glance(fit)
+```
+
+The `broom::tidy()` output presents: estimated coefficient, standard error, t-statistic, p-value, and 95% confidence interval for each predictor. `broom::glance()` provides model-level statistics: R², adjusted R², residual standard error, F-statistic, and degrees of freedom.
+
+## Interpreting Regression Coefficients
+
+The interpretation of a coefficient depends on the type of predictor:
+
+**Continuous predictor (e.g., tenure_months):** "For each additional month of tenure, satisfaction is expected to increase by $\hat{\beta}$ points, holding tier, region, and age constant."
+
+**Binary/dummy predictor (e.g., indicator for Discovery tier):** "Discovery tier subscribers are expected to rate satisfaction $\hat{\beta}$ points higher than the reference tier (Standard), holding tenure, region, and age constant."
+
+**Categorical predictor with k levels:** R creates k−1 dummy variables, each representing the difference between that level and the reference level. The reference level is absorbed into the intercept. Change the reference level with `relevel()` or by reordering factor levels.
+
+Always report the coefficient with its confidence interval. The sign indicates direction; the magnitude indicates practical significance; the CI indicates precision. A p-value without a CI is insufficient for interpretation.
+
+**R² and adjusted R²:** R² is the proportion of variance in Y explained by the model. Adjusted R² penalises adding predictors: $\bar{R}^2 = 1 - (1 - R^2)(n-1)/(n-k-1)$. Do not fetishise R² as a measure of model quality — a model with R² = 0.08 may capture a commercially important effect if the outcome variable has large total variance.
+
+# The Five OLS Assumptions and How to Check Them
+
+## Why Assumptions Matter
+
+Violations of the OLS assumptions produce consequences ranging from imprecise estimates (heteroscedasticity) to biased estimates (endogeneity) to wrong standard errors (clustering). Understanding which assumption is violated and what the consequence is determines the appropriate remedy.
+
+## Assumption 1 — Linearity
+
+The relationship between X and Y must be linear in the parameters (not necessarily in the variables). Nonlinearity in variables can be accommodated by transforming predictors (log, polynomial).
+
+```{r}
+#| label: linearity-check
+
+library(ggplot2)
+library(broom)
+
+fit_aug <- augment(fit)
+
+# Residuals vs. fitted values — look for curvature
+ggplot(fit_aug, aes(x = .fitted, y = .resid)) +
+  geom_point(alpha = 0.4, colour = "#7A003C") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_smooth(method = "loess", se = FALSE, colour = "#FDBF57") +
+  labs(title = "Residuals vs. fitted values",
+       subtitle = "Loess smoother should be flat at 0",
+       x = "Fitted values", y = "Residuals") +
+  theme_minimal()
+```
+
+A curved loess smoother suggests non-linearity — consider adding a squared term or log transformation for the relevant predictor.
+
+## Assumption 2 — Independence
+
+Errors must be independent across observations. This is violated by:
+
+- Repeated measures on the same respondent (panel data)
+- Clustered data (multiple respondents from the same household, store, or region)
+- Time series data where successive errors correlate
+
+Independence is the most serious assumption to violate because OLS standard errors can be dramatically wrong. For clustered data, cluster-robust standard errors are the solution; for panel data, fixed-effects or random-effects models are appropriate.
+
+## Assumption 3 — Homoscedasticity
+
+Error variance must be constant across the range of fitted values. Heteroscedasticity (non-constant variance) does not bias coefficients but makes standard errors (and therefore p-values and CIs) incorrect — typically underestimated, leading to false significance.
+
+```{r}
+#| label: homoscedasticity-check
+
+library(lmtest)
+library(sandwich)
+
+# Breusch-Pagan test for heteroscedasticity
+bp_result <- bptest(fit)
+bp_result
+
+# If significant: use HC3 robust standard errors
+if (bp_result$p.value < 0.05) {
+  coeftest(fit, vcov = vcovHC(fit, type = "HC3"))
+} else {
+  tidy(fit, conf.int = TRUE)
+}
+```
+
+HC3 (Davidson-MacKinnon) is the recommended heteroscedasticity-consistent (HC) standard error estimator for finite samples. It is more conservative than HC0 (the original White, 1980, estimator) and provides better coverage in smaller samples (Long & Ervin, 2000). Always use HC3 rather than HC0.
+
+## Assumption 4 — Normality of Errors
+
+Normality of errors is required for exact finite-sample inference but not for large-sample inference. With n = 800, the Central Limit Theorem makes the sampling distribution of $\hat{\beta}$ approximately normal regardless of the distribution of $\varepsilon$.
+
+```{r}
+#| label: normality-check
+
+# Q-Q plot
+ggplot(fit_aug, aes(sample = .resid)) +
+  stat_qq(colour = "#7A003C", alpha = 0.4) +
+  stat_qq_line(colour = "#FDBF57", linewidth = 1) +
+  labs(title = "Normal Q-Q plot of residuals",
+       subtitle = "Points should follow the diagonal line",
+       x = "Theoretical quantiles", y = "Sample quantiles") +
+  theme_minimal()
+```
+
+Use the Q-Q plot rather than formal normality tests (Shapiro-Wilk rejects for trivial deviations at large n). Minor deviations from the Q-Q diagonal are acceptable with n = 800.
+
+## Assumption 5 — No Perfect Multicollinearity
+
+Perfectly correlated predictors make the matrix $(X'X)$ singular and OLS is undefined. Near-perfect multicollinearity — high but not perfect correlation among predictors — inflates standard errors, making coefficient estimates unstable and difficult to interpret.
+
+```{r}
+#| label: multicollinearity-check
+
+library(car)
+
+# Variance Inflation Factor (VIF) for all predictors
+vif_result <- vif(fit)
+vif_result
+
+# For categorical predictors with multiple levels, GVIF^(1/(2*Df)) is comparable to sqrt(VIF)
+# Values above 3.16 (= sqrt(10)) indicate multicollinearity
+```
+
+VIF < 5 is generally acceptable; VIF 5–10 is borderline; VIF > 10 indicates problematic multicollinearity. Remedies include dropping one of the collinear predictors, creating composite variables, or using factor scores (as prepared in Session 9) which are designed to be orthogonal.
+
+## The Complete Diagnostic Panel
+
+```{r}
+#| label: full-diagnostic-panel
+
+# Base R four-panel diagnostic plot
+par(mfrow = c(2, 2))
+plot(fit)
+par(mfrow = c(1, 1))
+```
+
+The four panels are: Residuals vs. Fitted (linearity, heteroscedasticity), Normal Q-Q (normality), Scale-Location (heteroscedasticity), Residuals vs. Leverage (influential observations). Cook's distance > 4/n flags potentially influential observations worth investigating.
+
+# Categorical Predictors and Reference Levels
+
+## How R Handles Categorical Predictors
+
+When a categorical predictor has k levels, R creates k−1 binary dummy variables. Each dummy coefficient represents the difference between that level and the **reference level** (the omitted category, absorbed into the intercept).
+
+```{r}
+#| label: reference-levels
+
+# Set Standard as reference (the entry-level tier — a natural baseline)
+survey <- survey |>
+  mutate(tier = factor(tier, levels = c("Standard", "Signature", "Discovery")))
+
+fit_tier <- lm(satisfaction ~ tier, data = survey)
+tidy(fit_tier, conf.int = TRUE)
+
+# Interpretation:
+# (Intercept) = expected satisfaction for Standard tier subscribers
+# tierSignature = expected DIFFERENCE: Signature - Standard
+# tierDiscovery = expected DIFFERENCE: Discovery - Standard
+```
+
+Choosing the reference level is a communication decision: choose the level that makes the other coefficients most interpretable. For tier, Standard is the natural reference (entry level); for region, the largest or most comparable region is often chosen.
+
+## Comparing Non-Reference Levels
+
+To test whether Signature and Discovery subscribers differ from each other (not just from Standard), use `emmeans::pairs()`:
+
+```{r}
+#| label: emmeans-contrasts
+
+library(emmeans)
+
+emm <- emmeans(fit_tier, ~ tier)
+emm   # estimated means per tier
+
+# All pairwise contrasts
+pairs(emm, adjust = "tukey")
+
+# Or change the reference level
+survey_relevel <- survey |>
+  mutate(tier = relevel(tier, ref = "Signature"))
+lm(satisfaction ~ tier, data = survey_relevel) |>
+  tidy(conf.int = TRUE)
+```
+
+`emmeans` is preferred over releveling because it computes all pairwise contrasts in a single call with appropriate multiplicity correction, rather than requiring multiple model re-fits.
+
+# Standardised Coefficients for Driver Importance
+
+## Why Raw Coefficients Are Not Comparable
+
+In a model with predictors on different scales — age (years), tenure (months), satisfaction items (1–7) — raw regression coefficients are not comparable. A coefficient of 0.02 for tenure_months and 0.8 for f_quality does not mean quality is more "important" unless you account for the different variances of the predictors.
+
+Standardised (beta) coefficients express each predictor's effect in units of standard deviations of Y per standard deviation of X:
+
+$$\hat{\beta}^*_j = \hat{\beta}_j \times \frac{SD(X_j)}{SD(Y)}$$
+
+Standardised coefficients are directly comparable across predictors — the predictor with the largest |β*| has the largest association with Y in standardised units.
+
+```{r}
+#| label: standardised-coefficients
+
+library(lm.beta)
+
+# Fit the full model with factor scores from Session 9
+fit_drivers <- lm(
+  satisfaction ~ tenure_months + age + tier + f_convenience + f_quality + f_social,
+  data = survey
+)
+
+# Standardised coefficients
+lm.beta(fit_drivers)
+
+# Create a horizontal bar chart of driver importance
+std_coefs <- lm.beta(fit_drivers)$standardized.coefficients
+driver_df <- data.frame(
+  driver   = names(std_coefs)[-1],
+  std_beta = std_coefs[-1]
+) |>
+  arrange(desc(abs(std_beta)))
+
+library(ggplot2)
+ggplot(driver_df, aes(x = reorder(driver, std_beta),
+                      y = std_beta,
+                      fill = std_beta > 0)) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_manual(values = c("#7A003C", "#FDBF57"),
+                    labels = c("Negative", "Positive")) +
+  labs(
+    title    = "Drivers of satisfaction — standardised coefficients",
+    subtitle = "Maritime Roast Coffee Co.",
+    x        = NULL, y = "Standardised β",
+    fill     = "Direction",
+    caption  = "OLS regression, n = 800; coefficients adjusted for all other predictors"
+  ) +
+  theme_minimal()
+```
+
+## The Importance-Performance Map
+
+Driver analysis in commercial marketing research often culminates in an importance-performance map — a two-dimensional plot where the x-axis represents performance (how well Maritime Roast delivers on each driver) and the y-axis represents importance (the standardised regression coefficient). The quadrants indicate strategic priority:
+
+- **Top-left (high importance, low performance):** Priority investments — the areas where improvement will most increase satisfaction
+- **Top-right (high importance, high performance):** Maintain — strengths to protect
+- **Bottom-left (low importance, low performance):** Low priority — resource allocation should focus elsewhere
+- **Bottom-right (low importance, high performance):** Potentially over-served — resources here could be redirected
+
+The importance-performance map translates regression output into a strategic resource-allocation recommendation that is legible to non-technical decision-makers.
+
+# Interaction Terms in Regression
+
+## When Effects Depend on Other Variables
+
+An interaction term models situations where the effect of one predictor on Y depends on the value of another predictor. In the Maritime Roast context: does the relationship between tenure and satisfaction differ by tier? Perhaps Discovery subscribers who are newer tend to be more satisfied (the onboarding experience is exciting), while Standard subscribers show a different tenure-satisfaction trajectory.
+
+```{r}
+#| label: interaction-regression
+
+# Interaction between tenure and tier
+fit_int <- lm(satisfaction ~ tenure_months * tier + region + age,
+              data = survey)
+tidy(fit_int, conf.int = TRUE)
+
+# Interpret:
+# tenure_months = effect of tenure for the reference tier (Standard)
+# tierDiscovery:tenure_months = ADDITIONAL effect of tenure for Discovery vs. Standard
+```
+
+The interaction coefficient tells you how much the slope of the tenure-satisfaction relationship changes when moving from Standard to Discovery tier. A positive interaction coefficient means the positive tenure-satisfaction relationship is steeper for Discovery tier.
+
+When interactions are present, main effects no longer have a simple interpretation — the effect of each predictor depends on the value of the interacted variable. Use `emmeans` with the `at` argument to visualise the interaction:
+
+```{r}
+#| label: interaction-visualisation
+
+library(emmeans)
+
+emm_int <- emmeans(fit_int, ~ tenure_months | tier,
+                   at = list(tenure_months = c(3, 12, 24, 36)))
+plot(emm_int)
+```
+
+# Logistic Regression for Binary Outcomes
+
+## Why Not OLS for Binary Y?
+
+When the outcome variable is binary (upgraded = 0 or 1, churned = 0 or 1), linear regression has two pathological properties:
+
+1. Predicted probabilities are not constrained to [0, 1] — OLS can predict values below 0 or above 1
+2. The error variance is heteroscedastic by construction: for $Y \in \{0,1\}$, $Var(Y|X) = p(X)(1-p(X))$, which depends on X
+
+Logistic regression solves both problems by modelling the log-odds (logit) of the probability:
+
+$$\log\left(\frac{P(Y=1|X)}{1-P(Y=1|X)}\right) = \beta_0 + \beta_1 X_1 + \cdots + \beta_k X_k$$
+
+Equivalently:
+
+$$P(Y=1|X) = \frac{e^{X\beta}}{1 + e^{X\beta}} = \text{logistic}(X\beta)$$
+
+The logistic function maps any real number to (0, 1), guaranteeing valid probabilities. Logistic regression is estimated by maximum likelihood rather than OLS.
+
+## Running Logistic Regression in R
+
+```{r}
+#| label: logistic-regression
+
+# Logistic regression for upgrade probability
+ab <- read_csv("data/maritime_abtest.csv")
+
+fit_log <- glm(
+  upgraded ~ treatment + age + tenure_months + tier,
+  family = binomial(link = "logit"),
+  data   = ab
+)
+
+# Summary on the log-odds scale
+tidy(fit_log, conf.int = TRUE)
+
+# Exponentiated coefficients: odds ratios
+tidy(fit_log, exponentiate = TRUE, conf.int = TRUE)
+```
+
+## Interpreting Odds Ratios
+
+The exponentiated logistic regression coefficients are odds ratios (OR). An odds ratio of 1.5 means the odds of upgrading are 1.5 times higher for the treatment group than the control group. Note carefully:
+
+- OR = 1: no effect
+- OR > 1: increases odds
+- OR < 1: decreases odds (e.g., OR = 0.7 means 30% lower odds)
+
+**Odds and probability are not the same.** An OR of 2.0 does not mean "twice as likely to upgrade." If the baseline upgrade probability is 20%, doubling the odds gives: new probability = 2 × (0.20 / 0.80) / (1 + 2 × (0.20 / 0.80)) ≈ 33%, not 40%.
+
+For non-technical stakeholders, odds ratios are often confusing. **Average marginal effects** translate the logistic regression output into probability units and are much more interpretable:
+
+```{r}
+#| label: average-marginal-effects
+
+library(marginaleffects)
+
+# Average marginal effect of treatment: average change in P(upgrade)
+# when switching from control to treatment
+avg_slopes(fit_log, variables = "treatment")
+
+# Marginal effects at the mean (MEM): effect at mean covariate values
+slopes(fit_log, newdata = datagrid())
+```
+
+The AME answers: "On average, what is the change in the probability of upgrading when we switch from the current offer to the new offer?" It is in percentage-point units and directly comparable to the raw rate difference from the unadjusted analysis.
+
+## Model Fit for Logistic Regression
+
+```{r}
+#| label: logistic-fit
+
+# Model-level statistics
+broom::glance(fit_log)
+
+# McFadden's pseudo-R²
+null_ll  <- logLik(glm(upgraded ~ 1, family = binomial, data = ab))
+model_ll <- logLik(fit_log)
+mcfadden <- 1 - (as.numeric(model_ll) / as.numeric(null_ll))
+cat("McFadden R²:", round(mcfadden, 3), "\n")
+
+# Discrimination: AUC
+library(pROC)
+predicted_probs <- predict(fit_log, type = "response")
+roc_obj <- roc(ab$upgraded, predicted_probs)
+cat("AUC:", round(auc(roc_obj), 3), "\n")
+plot(roc_obj, col = "#7A003C", main = "ROC curve — upgrade model")
+```
+
+McFadden's pseudo-R² ranges from 0 to 1 but cannot be compared to OLS R². Values of 0.20–0.40 are considered excellent in logistic regression. AUC (area under the ROC curve) is a discrimination metric: AUC = 0.5 is random guessing; AUC = 0.7 is fair; AUC = 0.8 is good; AUC > 0.9 is excellent.
+
+# Driver Analysis: A Commercial Marketing Application
+
+## What Driver Analysis Asks
+
+Driver analysis uses regression to identify which predictors have the strongest association with a key marketing outcome — satisfaction, loyalty, net revenue, or churn. It answers the managerial question: "If we can improve one thing, which should it be?"
+
+Driver analysis is one of the most common applications of regression in commercial marketing research. Satisfaction tracker studies, brand health monitors, and customer experience programmes all involve a version of it. The technical component (regression) is only half the work; the interpretive and strategic component (translating coefficients into action) is the other half.
+
+## From Coefficients to the Importance-Performance Map
+
+```{r}
+#| label: importance-performance-map
+
+library(lm.beta)
+library(ggplot2)
+library(ggrepel)
+
+# Importance = |standardised beta|
+# Performance = mean rating on each predictor
+fit_ip <- lm(satisfaction ~ f_convenience + f_quality + f_social,
+             data = survey)
+
+std_coefs <- lm.beta(fit_ip)$standardized.coefficients[-1]  # exclude intercept
+importance <- abs(std_coefs)
+
+performance <- c(
+  mean(survey$f_convenience, na.rm = TRUE),
+  mean(survey$f_quality,     na.rm = TRUE),
+  mean(survey$f_social,      na.rm = TRUE)
+)
+
+ip_df <- data.frame(
+  driver      = names(importance),
+  importance  = importance,
+  performance = performance
+)
+
+ggplot(ip_df, aes(x = performance, y = importance, label = driver)) +
+  geom_point(size = 4, colour = "#7A003C") +
+  geom_text_repel(size = 3.5) +
+  geom_hline(yintercept = median(importance),  linetype = "dashed", alpha = 0.5) +
+  geom_vline(xintercept = median(performance), linetype = "dashed", alpha = 0.5) +
+  labs(
+    title    = "Importance-performance map — satisfaction drivers",
+    subtitle = "Top-left quadrant: high importance, low performance (investment priorities)",
+    x        = "Performance (factor score mean)",
+    y        = "Importance (|standardised β|)"
+  ) +
+  theme_minimal()
+```
+
+## What Driver Analysis Cannot Tell You
+
+Driver analysis quantifies associations, not causal effects. A high standardised coefficient for "quality seeking" means quality-oriented needs are strongly associated with higher satisfaction — it does not mean that investing in quality will necessarily increase satisfaction. Three important limitations:
+
+**Causation requires identification.** To claim that improving quality causes satisfaction to increase, you need either a randomised experiment (test a quality improvement on a random subset of subscribers) or a strong quasi-experimental design. Cross-sectional regression cannot provide this.
+
+**Fixed drivers are not actionable.** Tenure is a strong satisfaction driver in many loyalty contexts, but you cannot compel customers to stay longer — their tenure at time of survey reflects their actual relationship history. Understanding why longer-tenured subscribers are more satisfied (perhaps they have found routines that maximise the subscription value) may suggest actionable interventions even for a fixed-predictor driver.
+
+**Non-linear effects are missed by OLS.** A diminishing-returns relationship between quality and satisfaction — where the first quality improvement has a large effect but subsequent improvements add little — is not captured by a linear coefficient. OLS assumes constant marginal effects.
+
+Always supplement quantitative driver analysis with qualitative insights from focus groups, customer interviews, or open-ended survey responses to understand the mechanisms behind the associations.
+
+# Predicting Churn with Logistic Regression
+
+## The Business Case
+
+A churn prediction model that identifies at-risk subscribers 60–90 days before they cancel enables proactive retention interventions. The model predicts which subscribers are most likely to not renew, allowing Maritime Roast to target retention outreach (personalised offers, service improvements, check-in calls) at the right customers at the right time.
+
+```{r}
+#| label: churn-prediction
+
+# Merge survey data with churn outcomes from transaction records
+transactions <- read_csv("data/maritime_transactions.csv")
+
+survey_churn <- survey |>
+  left_join(
+    transactions |>
+      group_by(customer_id) |>
+      summarise(churned = as.integer(last(subscription_active) == 0)),
+    by = "customer_id"
+  )
+
+# Fit churn model
+churn_fit <- glm(
+  churned ~ satisfaction + tenure_months + tier + f_convenience + f_quality + f_social,
+  family = binomial,
+  data   = survey_churn
+)
+
+# Tidy output: odds ratios
+broom::tidy(churn_fit, exponentiate = TRUE, conf.int = TRUE) |>
+  filter(term != "(Intercept)") |>
+  arrange(estimate)
+
+# Predicted churn probabilities
+survey_churn$p_churn <- predict(churn_fit, type = "response")
+
+# Segment into risk tiers
+survey_churn <- survey_churn |>
+  mutate(risk_tier = case_when(
+    p_churn > 0.40 ~ "High risk (>40%)",
+    p_churn > 0.20 ~ "Medium risk (20-40%)",
+    TRUE           ~ "Low risk (<20%)"
+  ))
+
+# Profile each risk tier
+survey_churn |>
+  group_by(risk_tier) |>
+  summarise(
+    n           = n(),
+    mean_sat    = mean(satisfaction,  na.rm = TRUE),
+    mean_tenure = mean(tenure_months, na.rm = TRUE),
+    pct_standard = mean(tier == "Standard", na.rm = TRUE)
+  )
+```
+
+The risk-tier profiles tell you who is at risk and what characterises them — the inputs to targeted retention strategy. High-risk Standard-tier subscribers with low quality needs scores may respond well to a curated quality-upgrade trial. High-risk Discovery subscribers with low social needs scores may need community engagement rather than product improvements.
+
+# The Ethics of Causal Language in Regression
+
+## A Critical Professional Standard
+
+Observational regression models — however well-specified — establish associations, not causes. A regression coefficient on satisfaction telling you that "each point increase in satisfaction is associated with a 0.03 unit increase in predicted probability of renewal" is a description of the data. It does not establish that improving satisfaction causes higher renewal rates.
+
+Using causal language ("satisfaction drives renewal," "quality causes loyalty") in a regression report built on observational survey data is a professional error. It misleads decision-makers about the strength of the evidence for proposed interventions and contributes to what is sometimes called a "causal leap" — using correlational evidence to justify causal action without acknowledging the inferential gap.
+
+**Appropriate language for observational regression:**
+- "associated with"
+- "predicts" (in the statistical sense — not implying causation)
+- "is related to"
+- "is correlated with"
+
+**Reserve causal language for:**
+- Randomised experiments (Session 10)
+- Quasi-experimental designs with explicit identification strategies and stated assumptions
+- Replication across multiple independent datasets and methods
+
+When a client asks why their satisfaction is low and you run a regression identifying quality as the top "driver," the honest response is: "Quality satisfaction scores are the strongest correlate of overall satisfaction in this data. If we improve quality, we expect satisfaction to improve — but this prediction is based on an association, not a controlled experiment. We'd recommend a pilot test before large-scale quality investment."
+
+This is not hedging — it is the accurate representation of what the evidence supports.
+
+# References and Further Reading
+
+**White, H. (1980).** A heteroskedasticity-consistent covariance matrix estimator and a direct test for heteroskedasticity. *Econometrica*, 48(4), 817–838. The original HC standard errors paper.
+
+**Long, J.S. & Ervin, L.H. (2000).** Using heteroscedasticity-consistent standard errors in the linear regression model. *The American Statistician*, 54(3), 217–224. Why HC3 outperforms HC0 in finite samples.
+
+**Gauss-Markov theorem:** covered in virtually all econometrics textbooks. For a clear accessible treatment: Wooldridge, J.M. *Introductory Econometrics: A Modern Approach* (any edition), Chapter 3.
+
+**Arel-Bundock, V. (2023).** marginaleffects: Predictions, Comparisons, Slopes, Marginal Means, and Hypothesis Tests for Statistical Models. R package. The `marginaleffects` package provides AME computation for virtually all model classes.
+
+**Johnson, J.W. & LeBreton, J.M. (2004).** History and use of relative importance indices in organizational research. *Organizational Research Methods*, 7(3), 238–257. Background on standardised coefficients and relative importance analysis.

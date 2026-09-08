@@ -1,0 +1,345 @@
+---
+title: "Session 13 — Course Synthesis: The Full Arc of Marketing Research"
+subtitle: "M731 Marketing Research · Comprehensive Lecture Notes"
+author: "Shay Abbasi"
+date: "2026-12-02"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    theme: cosmo
+    self-contained: true
+---
+
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE, message = FALSE, warning = FALSE)
+```
+
+# The Seven-Step MR Process: A Complete Review
+
+## What This Course Covered
+
+Session 13 is the capstone of M731. It is the appropriate moment to step back from the weekly method-by-method progression and see the whole structure of the marketing research process that the course has built, piece by piece, across thirteen weeks.
+
+The seven-step MR process (Malhotra & Birks) provided the scaffolding:
+
+| Session | Topic | Step in MR Process |
+|---------|-------|-------------------|
+| 1 | Introduction to MR, R/Quarto setup | Step 1: Define the problem |
+| 2 | Research design, secondary data | Step 2: Develop the approach |
+| 3 | Measurement and sampling | Steps 3–4: Design the instrument and sampling plan |
+| 4 | Questionnaire design | Step 4: Fieldwork preparation |
+| 5 | Qualitative research | Step 3 (alternative approach) |
+| 6–7 | Hypothesis testing, ANOVA | Step 5: Data preparation and analysis |
+| 8 | Scales: reliability and validity | Steps 3–4 quality assurance |
+| 9 | Factor analysis | Step 5: Advanced analysis |
+| 10 | Experimental research and A/B testing | Steps 2–5 (causal MR) |
+| 11 | Regression | Step 5: Modelling |
+| 12–13 | Reporting and presenting | Steps 6–7: Report and present |
+
+The course was not a random walk through techniques. It traced the logic of the research process from problem definition to final recommendation — the same path every study must follow.
+
+## The Sequential Logic of Research
+
+Research decisions are not independent — each step constrains what is possible downstream. A flawed research question (Step 1) produces findings that do not address the business decision, regardless of how technically sophisticated the analysis. A sampling plan that excludes the relevant population (Step 3) produces findings that are not generalisable to the decision context, regardless of how large the sample. A questionnaire with unreliable measures (Step 4) produces noisy data that inflates required sample sizes and obscures real effects.
+
+This sequential dependency is why M731 spent three sessions — more than any other topic — on design, measurement, and sampling (Sessions 2, 3, 4) before moving to analysis. The analysis is only as good as the data it operates on, and the data is only as good as the research design that produced it.
+
+## Each Step Must Be Defensible Before the Next Begins
+
+The research process has a natural momentum that pushes toward data collection before the design is ready. Project timelines compress, clients want faster answers, and methodological doubts are uncomfortable to voice in team settings. The professional discipline is to insist on defensible decisions at each step before proceeding:
+
+- Can you state the research question in one sentence that directly connects to a business decision? If not, Step 1 is not complete.
+- Does your design actually answer that question? If it addresses associations when the client needs causal evidence, the design needs revision before fieldwork.
+- Can you defend every aspect of your sampling plan (frame, method, size) to a knowledgeable critic? If not, revisit it.
+- Have all items in your questionnaire been pretested? Do you know what each item's reliability and potential biases are?
+
+These are uncomfortable questions because answering "no" creates work. But they are the right questions.
+
+# What Separates Strong Analysts
+
+## Technical Competence vs. Methodological Maturity
+
+The skills that M731 has built can be sorted into two categories. Technical competence — running the correct R functions, producing clean output, choosing appropriate tests — is necessary. But it is table stakes in the graduate market. What separates strong analysts is methodological maturity:
+
+**Choosing the right method for the research question.** Not all satisfaction questions warrant ANOVA; not all retention questions warrant logistic regression; not all multi-item batteries warrant factor analysis. The method follows from the question, not the reverse.
+
+**Diagnosing when assumptions are violated.** Running a t-test on a severely non-normal variable with n = 8, or reporting a regression coefficient on an observational dataset as a causal effect, or computing Cronbach's alpha on a formative construct — these are errors that technically competent analysts make when they have not developed methodological judgment.
+
+**Interpreting effect sizes, not just p-values.** A statistically significant coefficient with a standardised beta of 0.04 may not be worth acting on. A marginally significant coefficient with a standardised beta of 0.35 may be the most important finding in the study. Significance and importance are not the same.
+
+**Communicating uncertainty honestly.** Confidence intervals communicate more than p-values. Limitations sections build more credibility than they destroy. Exploratory findings flagged as exploratory are more trustworthy than exploratory findings dressed as confirmatory.
+
+## The Four Questions Every Finding Must Answer
+
+Before presenting any finding — in a report, a presentation, a management memo — run it through this four-question test:
+
+**1. Is this finding real?** Statistical significance at the chosen α level, with appropriate corrections for multiple comparisons. Effect size with confidence interval. Would this result replicate in a new sample?
+
+**2. Is this finding important?** Effect size relative to practical benchmarks. What does this magnitude imply for the actual business outcome? Is a 0.3-point satisfaction difference on a 7-point scale a commercially meaningful gap?
+
+**3. Is this finding causal?** Was it produced by a randomised experiment? If not, what are the plausible alternative explanations, and are they ruled out by the design? Causal language is only justified for causal identification strategies.
+
+**4. What should the client do?** The recommendation that follows from this finding. If no recommendation follows, the finding may belong in an appendix rather than the findings section.
+
+Most research reports answer only question 1. Graduate-level work answers all four. The difference is what makes a research report useful rather than merely technically correct.
+
+## Five Career Errors and How to Avoid Them
+
+| Error | What it looks like | How to avoid |
+|-------|------------------|-------------|
+| Over-claiming causation | "Brand attachment causes loyalty" from a cross-sectional survey | Use causal language only when you have causal identification |
+| Cherry-picking | Reporting the 3 significant findings from 30 tests | Pre-specify tests; report all; apply corrections |
+| Hiding limitations | "This is a representative national sample" for a convenience sample | Name limitations explicitly; scope your conclusions accurately |
+| P-value worship | "p < .05, therefore this is a meaningful finding" | Report effect size with CI alongside every significance test |
+| Conflating explore and confirm | Presenting post-hoc discoveries as predicted hypotheses | Date your hypotheses; flag exploratory analyses as exploratory |
+
+These errors are common because each carries a short-term benefit: the client is satisfied, the finding sounds stronger, the report is shorter, the analysis seems more decisive. The long-term cost is credibility. Research integrity is the foundation of a sustainable advisory relationship. Clients who catch you in one of these errors will not trust your subsequent work.
+
+# The Ethics Thread: A Complete Review
+
+## Ethics Is Not a Separate Topic
+
+Every session of M731 included an ethics thread — a deliberate design choice to embed methodological ethics within analytical practice rather than treating it as a standalone module. The recurring insight across all sessions: every methodological choice has an ethical dimension, and being a credible researcher requires being a trustworthy one.
+
+The complete ethics thread across thirteen sessions:
+
+| Session | Ethics topic |
+|---------|-------------|
+| 1 | MR as a fiduciary relationship; PIPEDA; TCPS-2 informed consent |
+| 2 | Secondary data mosaic effect; aggregation privacy |
+| 3 | Literary Digest 1936; sampling bias consequences |
+| 4 | Questionnaire ethics; informed consent; avoiding double-barrelled items |
+| 5 | Qualitative anonymisation; dual-role researcher problem |
+| 6–7 | p-hacking; HARKing; multiple comparisons; selective reporting |
+| 8 | Culturally appropriate scales; translation ethics |
+| 9 | Interpretive ethics in factor analysis; selective extraction |
+| 10 | Facebook emotional contagion; A/B testing consent |
+| 11 | Causal language on observational data |
+| 12 | Client pressure to change findings; honest Q&A responses |
+
+## The Research Ethics Hierarchy
+
+**The highest standard (academic research):** Preregistered hypotheses, pre-analysis plans, IRB review, open data and code, public reporting including null results, independent replication. This standard exists because academic research claims to contribute generalisable knowledge, making its errors publicly consequential.
+
+**The professional standard (commercial MR):** MRIA/ESOMAR codes of conduct, informed consent from respondents, honest reporting of findings, client confidentiality, no cherry-picking or selective reporting, appropriate qualification of conclusions. This standard exists because commercial research informs business decisions affecting customers, employees, and communities.
+
+**The minimum standard (any research, any context):** Do not fabricate data. Do not report results you know to be misleading. Do not claim causation from evidence that cannot support it. This standard exists because research that violates it is not research — it is disinformation.
+
+The minimum standard is surprisingly often violated in commercial practice. Pressure to confirm what clients already believe, to deliver positive results, or to show ROI on research investment creates perverse incentives. The professional response to these pressures is the same in all cases: report what the data shows, appropriately qualified, with honest limitations.
+
+## The Long Game of Integrity
+
+Research integrity compounds over a career in both directions. A researcher who routinely overstates findings, hides limitations, and stretches causal language builds a reputation for unreliable work. Clients who discover a single case of over-claiming doubt all past and future work from that researcher.
+
+A researcher who consistently reports what the data shows, flags limitations honestly, and delivers uncomfortable truths tactfully builds a reputation for reliability. Clients who trust your conclusions give you more challenging projects, more data access, and more analytical autonomy — the conditions for more interesting and influential work.
+
+The market for trustworthy insight professionals is never saturated. This is the long-game argument for methodological integrity.
+
+# The Marketing Research Industry: Career Context
+
+## Where MR Graduates Work
+
+The marketing research industry has three main sectors:
+
+**Supplier side (research agencies):** Firms that design and execute studies for client companies. Major international firms: Nielsen IQ, Ipsos, Kantar, GfK, Toluna. Canadian firms: MARU/Matchbox, Leger, Environics Analytics, Abacus Data. Boutique specialists: eye-tracking labs, neuromarketing firms, online panel companies. Roles: Research Analyst → Senior Analyst → Project Manager → Research Director.
+
+**Client side (in-house teams):** Consumer insights, customer experience, and brand strategy teams within companies. Major employers in Canada: Loblaw Companies, RBC, TD Bank, Shopify, BCE, major CPGs (Unilever Canada, Procter & Gamble). Roles: Insights Analyst → Senior Insights Manager → Director of Consumer Insights.
+
+**Adjacent sectors:** Management consulting firms (McKinsey Consumer & Shopper Insights, Deloitte Analytics), government and policy research (Statistics Canada, Health Canada, municipal governments), technology companies (product analytics, growth analytics at Shopify, HubSpot, etc.).
+
+## Skills the Industry Is Hiring For
+
+The skills that are standard table stakes in 2026:
+
+- **Survey design and questionnaire writing:** the core of all primary research work
+- **Quantitative analysis:** regression, ANOVA, factor analysis, and the tests covered in Sessions 6–11
+- **Data visualization:** ggplot2 for R users, Tableau or Power BI for business intelligence contexts
+- **Written communication:** the ability to produce clear, decision-oriented reports (Session 12)
+- **SQL:** increasingly required for client-side roles where CRM and transactional data live in SQL databases
+
+Skills that are increasingly valued and distinguish candidates:
+
+- **Python:** for large-scale data manipulation, text analytics, and ML-adjacent work
+- **A/B testing and experimentation design:** the ability to design, analyse, and communicate randomised tests (Session 10)
+- **Causal inference:** familiarity with DiD, RDD, and quasi-experimental methods signals econometric training
+
+Skills that differentiate senior from junior researchers:
+
+- **Conjoint analysis / MaxDiff:** the dominant commercial methods for product and feature preference measurement
+- **Bayesian methods:** hierarchical models for heterogeneous respondent populations, increasingly standard at major agencies
+- **Structural equation modelling:** required for academic-quality scale validation and for complex causal path models
+
+## Professional Associations
+
+**MRIA-ARIM (Marketing Research and Intelligence Association):** Canada's professional body for MR researchers. Student membership is approximately $200–300 per year. The annual MRIA conference (typically June) is the primary networking venue for the Canadian MR industry and the best place for recent graduates to find first positions. The Professional Researcher Certification (PRC) designation requires several years of professional experience but signals career commitment.
+
+**Insights Association:** The US-based equivalent, formerly the Marketing Research Association (MRA). Widely recognised internationally. Sets industry standards for research ethics and methodology.
+
+**ESOMAR:** The European-headquartered global body for market research, analytics, and data science. Particularly relevant for international careers and for academic-industry collaboration. Publishes the ICC/ESOMAR International Code on Market, Opinion and Social Research and Data Analytics.
+
+# Advanced Methods: What Comes After M731
+
+## The Next Level
+
+M731 builds the foundation. The following advanced methods represent specialisation paths for students pursuing careers in research, analytics, or advanced marketing science:
+
+**Measurement and psychometrics:**
+- Confirmatory Factor Analysis (CFA) and Structural Equation Modelling (SEM) via `lavaan` — the full validation toolchain for multi-construct measurement models
+- Item Response Theory (IRT) — models individual item characteristics (difficulty, discrimination) rather than treating items as interchangeable; package `mirt`
+- Bayesian measurement models — hierarchical approaches to reliability and validity estimation
+
+**Preference and choice modelling:**
+- Choice-Based Conjoint (CBC) — the dominant commercial method for product design, feature prioritisation, and willingness-to-pay research; implemented in Sawtooth Software SSI Web or via R packages `mlogit` and `logitr`
+- MaxDiff / Best-Worst Scaling — forced-choice prioritisation method described in Session 8; produces ratio-scale preference scores
+- Hierarchical Bayes estimation — the statistical backbone of modern conjoint analysis; allows individual-level preference estimation from choice data
+
+**Causal inference:**
+- Difference-in-differences (DiD) — covered briefly in Session 10; deepened by Callaway & Sant'Anna (2021) methods for staggered adoption designs
+- Regression Discontinuity Design (RDD) — identifies causal effects at eligibility thresholds; package `rdrobust`
+- Instrumental Variables (IV) — uses exogenous variation to identify causal effects in observational data; foundational in economics; package `ivreg` or `fixest`
+- Synthetic Control — creates a counterfactual comparison unit from a weighted combination of untreated units; increasingly used for marketing policy evaluation
+
+**Text and behavioural analytics:**
+- Advanced NLP: BERT-based sentiment analysis and named-entity recognition; transformer models for open-ended survey response analysis
+- Topic modelling: Latent Dirichlet Allocation (LDA) and structural topic models via package `stm`
+- Web behaviour analytics: clickstream analysis, time-on-page, scroll depth; increasingly available through GA4 and custom instrumentation
+
+## Conjoint Analysis: A Closer Look
+
+Choice-Based Conjoint (CBC) is the method that, more than any other, drives product design, pricing, and feature prioritisation decisions in commercial marketing research. It is worth understanding in outline even if the methods course did not cover it in depth.
+
+A CBC study presents respondents with repeated choice tasks. Each task shows a small set of product alternatives (typically 3–4), each defined by levels of several attributes (price, delivery speed, quality tier, flavour profile). The respondent selects their preferred option. This is repeated across 8–16 different attribute combinations drawn from an experimental design.
+
+For Maritime Roast, a conjoint study might vary: number of bags per month (2, 3, 4), price per month ($18, $22, $26, $30), origin (blended, single-origin, rotating), roast level (light, medium, dark), and a gift option (yes, no). The experimental design ensures that all attribute levels appear in uncorrelated combinations across the choice tasks.
+
+The result is a set of **part-worth utilities** — the value of each attribute level relative to the reference level within each attribute — estimated via logistic regression or hierarchical Bayes. These utilities answer questions like: "How much is 'single-origin' worth to our subscribers, in dollars of monthly price they would accept to have it?" This is the willingness-to-pay estimate that guides pricing and feature investment decisions.
+
+## Segmentation: Beyond Demographics
+
+One of the most commercially valuable applications of factor analysis (Session 9) is need-based segmentation. Factor scores from the needs battery identify where each subscriber stands on the underlying need dimensions (Convenience, Quality, Social). Cluster analysis (k-means or hierarchical) on these factor scores groups subscribers into segments with similar need profiles.
+
+The most strategically powerful segmentation combines two dimensions:
+
+- **Needs profile:** what the subscriber values (from factor analysis and cluster analysis)
+- **Customer value:** what the subscriber is worth (CLV, current tier, growth potential)
+
+The resulting 2×2 (or 2×3) matrix allows targeted strategy: high-value Convenience-oriented subscribers who are approaching churn should receive retention interventions emphasising service reliability; low-value Quality-seeking subscribers who are engaged may be upgrade candidates with the right quality-messaging offer.
+
+This is the payoff of the analytical arc built across Sessions 8–11: reliable measurement (Session 8) → latent structure (Session 9) → predictive modelling (Session 11) → actionable segmentation.
+
+# The R Toolkit for M731: Complete Reference
+
+## All Packages Used in This Course
+
+```{r}
+#| label: complete-package-inventory
+
+# Core data manipulation and visualisation
+library(tidyverse)        # dplyr, ggplot2, readr, tidyr, purrr, stringr
+library(janitor)          # clean_names(), tabyl(), adorn_totals()
+library(patchwork)        # combine multiple ggplot panels
+
+# Descriptive and survey analysis
+library(psych)            # describe(), alpha(), fa(), omega(), KMO()
+library(survey)           # svydesign(), svymean(), post-stratification weights
+library(cansim)           # Statistics Canada CANSIM table retrieval
+
+# Hypothesis testing and effect sizes
+library(car)              # Anova(), leveneTest(), vif()
+library(broom)            # tidy(), glance(), augment()
+library(effectsize)       # eta_squared(), omega_squared(), cohens_d(), cramers_v()
+library(pwr)              # pwr.t.test(), pwr.anova.test(), pwr.2p.test()
+library(emmeans)          # post-hoc contrasts, marginal means, interactions
+library(rstatix)          # games_howell_test(), wilcox_test()
+library(FSA)              # dunnTest() for Kruskal-Wallis post-hoc
+
+# Regression and model inference
+library(sandwich)         # vcovHC() for heteroscedasticity-consistent SEs
+library(lmtest)           # coeftest(), bptest()
+library(lm.beta)          # lm.beta() for standardised coefficients
+library(marginaleffects)  # avg_slopes() for average marginal effects
+library(MASS)             # mvrnorm() for multivariate normal simulation
+library(pROC)             # roc(), auc() for logistic model discrimination
+
+# Text analytics
+library(tidytext)         # unnest_tokens(), get_sentiments()
+library(readtext)         # read text files for qualitative analysis
+
+# Factor analysis and SEM
+library(lavaan)           # cfa(), sem() for confirmatory factor analysis
+
+# Tables and reporting
+library(gt)               # publication-quality tables (modern standard)
+library(corrplot)         # correlation heatmaps
+library(knitr)            # kable() for simple HTML/PDF tables
+
+# A/B testing and experimental design
+library(gsDesign)         # group-sequential designs for A/B testing
+
+# Data acquisition
+library(qualtRics)        # Qualtrics API for survey data retrieval
+```
+
+## Key Functions by Session
+
+| Session | Primary functions used |
+|---------|----------------------|
+| 2 | `read_csv()`, `ggplot()`, `geom_bar()`, `geom_histogram()`, `cansim::get_cansim()` |
+| 3 | `survey::svydesign()`, `svymean()`, sample size formulas via `pwr` |
+| 4 | `qualtRics::fetch_survey()`, `janitor::clean_names()`, `mutate()` |
+| 5 | `tidytext::unnest_tokens()`, `get_sentiments("bing")`, `count()` |
+| 6 | `t.test()`, `chisq.test()`, `wilcox.test()`, `effectsize::cohens_d()` |
+| 7 | `aov()`, `car::Anova()`, `TukeyHSD()`, `emmeans()`, `effectsize::eta_squared()` |
+| 8 | `psych::alpha()`, `psych::omega()`, `corrplot()` |
+| 9 | `psych::KMO()`, `psych::fa.parallel()`, `psych::fa()`, `lavaan::cfa()` |
+| 10 | `prop.test()`, `glm(family=binomial)`, `pwr::ES.h()`, `pwr::pwr.2p.test()`, `marginaleffects::avg_slopes()` |
+| 11 | `lm()`, `car::vif()`, `lmtest::bptest()`, `lmtest::coeftest()`, `lm.beta()`, `pROC::roc()` |
+| 12 | `gt()`, Quarto cross-refs, `quarto::quarto_render()` for parameterised reports |
+
+# Three Habits That Last a Career
+
+## Habit 1: Always Look at Your Data Before Modelling
+
+Before running any statistical model, examine the data:
+
+- Plot each variable's distribution (histogram, density, or boxplot)
+- Check for outliers and extreme values
+- Inspect missing value patterns
+- Run `psych::describe()` or `summary()` for descriptive statistics
+- Look at the correlation matrix for unexpected relationships
+
+A regression model fit to data with an undetected coding error (negative tenure, satisfaction ratings of 0 on a 7-point scale), a batch of straight-liners who rated everything 4, or a skewed distribution that violates normality assumptions is wasted computation. The diagnostic work takes 30 minutes; fixing a model that produced nonsense results takes days.
+
+## Habit 2: Interpret Magnitude, Not Just Significance
+
+Every result in every analysis should include:
+
+- An effect size measure appropriate to the analysis type (Cohen's d, η², standardised β, AME in probability units)
+- A confidence interval for that effect size
+- A sentence interpreting the magnitude in substantive terms — what does this number mean for the business decision?
+
+"Satisfaction differed significantly by tier (F(2, 797) = 14.3, p < .001)" is technically correct but interpretively incomplete. "Satisfaction differed significantly by tier (F(2, 797) = 14.3, p < .001, ω² = 0.12, 95% CI [0.07, 0.17]), with Discovery subscribers rating satisfaction 0.7 points higher than Standard subscribers on a 7-point scale — a practically meaningful gap given the subscription renewal decision most subscribers face annually" is complete.
+
+The first sentence passes the statistical test. The second sentence informs a business decision.
+
+## Habit 3: Say What You Don't Know as Clearly as What You Do
+
+Every study has limitations. The boundaries of what a study can conclude are as important as the findings themselves. A study that claims more than its design supports misleads decision-makers and, when later found wanting, damages trust in all analytical work from that team.
+
+Three specific practices:
+
+**Scope your sample correctly.** "Maritime Roast subscribers who responded to a September 2026 online survey" is a different population from "coffee consumers" or "DTC subscription customers." State which population was actually studied and which populations the findings can reasonably be extrapolated to.
+
+**Distinguish association from causation.** Observational regression shows associations. Only randomised experiments or quasi-experimental designs with explicit identification strategies show causal effects. State clearly which type of evidence you have.
+
+**Flag exploratory analyses.** Any analysis not specified before data collection should be clearly labelled as exploratory. This does not prevent you from reporting it — it informs the reader about the strength of the evidence.
+
+These three habits require nothing beyond the methods you already know. They require only the discipline to apply what you know consistently, in the face of time pressure, client expectations, and the natural human desire for clear, confident answers.
+
+---
+
+The arc of M731 ends here — from the AMA definition of marketing research in Session 1 through thirteen weeks of methods, applications, and ethical threads, to this summary of what it means to be a trustworthy, competent marketing research professional. The methods will evolve; the habits and principles will not.

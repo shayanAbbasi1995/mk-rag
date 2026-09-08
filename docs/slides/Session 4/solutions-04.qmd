@@ -1,0 +1,145 @@
+---
+title: "Solutions — Session 4: Cleaning a Messy Survey Export"
+subtitle: "M731 · Full worked walkthrough (companion to session-04.qmd)"
+author: "Shay Abbasi"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    embed-resources: true
+    theme: cosmo
+execute:
+  echo: true
+  eval: true
+  warning: false
+  message: false
+---
+
+## Purpose
+
+Full worked version of the Session 4 in-lab exercise: cleaning column
+names, reverse-coding, straight-line detection, and composite-score
+construction on a deliberately messy survey export.
+
+**Dataset provenance.** The original slide deck referenced Kaggle's
+["Young People Survey"](https://www.kaggle.com/datasets/miroslavsabo/young-people-survey)
+(Sabo, 2016). That dataset is third-party and not ours to redistribute
+in a course repo, so `kaggle_survey_raw.csv` here is an
+**instructor-simulated stand-in** with the same messy structure
+(inconsistent column names, mixed NA encodings, a reverse-worded item
+pair, and two multi-item batteries: an 8-item `Music` battery and a
+6-item `Movies_` battery, plus `loneliness_1`/`loneliness_2`). If your
+own teaching context has access to the real dataset, swap it in — the
+cleaning code below is unaffected either way.
+
+## Setup
+
+```{r}
+#| label: setup
+library(tidyverse)
+library(janitor)
+
+raw <- read_csv("data/kaggle_survey_raw.csv")
+dim(raw)
+```
+
+## Step 1 — Clean column names
+
+```{r}
+#| label: clean-names
+raw <- raw |> clean_names()
+names(raw)
+```
+
+**Interpretation.** `clean_names()` converts `"Age "`, `"Village -
+town"`, `"Music 1"` etc. into consistent `snake_case` (`age`,
+`village_town`, `music_1`...). This single step eliminates most
+quoting headaches for the rest of the pipeline.
+
+## Step 2 — Reverse-code the reversed item
+
+`loneliness_2` was deliberately generated as the reverse-worded
+partner of `loneliness_1` (see `data-raw/generate_datasets.R`).
+
+```{r}
+#| label: reverse-code
+raw <- raw |>
+  mutate(loneliness_2_r = 6 - loneliness_2)
+
+cor(raw$loneliness_1, raw$loneliness_2, use = "complete.obs")
+cor(raw$loneliness_1, raw$loneliness_2_r, use = "complete.obs")
+```
+
+**Interpretation.** Before reversing, `loneliness_1` and
+`loneliness_2` correlate negatively (as expected for a reverse-worded
+pair). After reversing `loneliness_2`, the correlation flips positive
+— confirmation the reversal was applied correctly. **Always check this
+correlation before and after** — it's the fastest way to catch a
+reverse-coding bug.
+
+## Step 3 — Missing-value audit
+
+```{r}
+#| label: missing-audit
+raw |>
+  summarise(across(everything(), ~ sum(is.na(.)))) |>
+  pivot_longer(everything(), names_to = "col", values_to = "n_missing") |>
+  arrange(desc(n_missing)) |>
+  head(10)
+```
+
+**Interpretation.** Missingness is scattered at roughly 3-6% per
+column by design — realistic for a real export, not catastrophic.
+Decide per column: for the music/movies batteries we'll keep `NA` and
+use `na.rm = TRUE` in composite scoring below; for `age` (a screening
+variable) a stricter case-wise drop might be warranted for downstream
+models.
+
+## Step 4 — Straight-line detection
+
+```{r}
+#| label: straightline
+music_items <- raw |> select(starts_with("music_"))
+
+raw$music_sd <- apply(music_items, 1, sd, na.rm = TRUE)
+
+raw |>
+  arrange(music_sd) |>
+  select(music_sd, starts_with("music_")) |>
+  head(10)
+```
+
+**Interpretation.** Rows with `music_sd` at or near 0 answered every
+item in the battery identically — the classic straight-lining
+signature. `data-raw/generate_datasets.R` deliberately planted 25 such
+rows so this diagnostic has something real to catch; in your own data,
+flag rows below roughly SD < 0.3 on a 5-point battery for review or
+exclusion.
+
+## Step 5 — Composite score + distribution
+
+```{r}
+#| label: fig-composite
+#| fig-cap: "Distribution of the composite music-enthusiasm score"
+raw <- raw |>
+  mutate(music_score = rowMeans(select(raw, starts_with("music_")), na.rm = TRUE))
+
+raw |>
+  ggplot(aes(x = music_score)) +
+  geom_histogram(binwidth = 0.25, fill = "#7A003C", colour = "white") +
+  labs(title = "Composite music-enthusiasm score", x = "Score (1-5)", y = "Count") +
+  theme_minimal()
+```
+
+**Interpretation.** The composite is roughly centred with a mild
+concentration near the straight-liner value (3) driven by the planted
+rows — worth excluding the flagged straight-liners before treating this
+as a clean analytic variable, e.g. `filter(music_sd > 0.3)`.
+
+## Take-away for students
+
+Every messy-data pipeline follows the same order: **clean names →
+check/reverse-code → audit missingness → detect quality problems →
+build composites → visualise before you trust anything.** Skipping a
+step (especially the reverse-code check) is the single most common
+source of "why is my alpha negative" panic in Week 8.

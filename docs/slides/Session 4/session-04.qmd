@@ -1,0 +1,539 @@
+---
+title: "Session 4 — Survey Design & Measurement Methods"
+subtitle: "M731 Week 4 · September 30, 2026"
+author: "Shay Abbasi"
+date: "2026-09-30"
+---
+
+## Session 4 {background-color="#7A003C"}
+
+Survey design and measurement methods
+
+::: {.notes}
+Collect any graded work due today per A2L logistics - keep it under 2
+min. Then dive into content.
+:::
+
+## Today's agenda
+
+1. From construct to item to questionnaire
+2. Question wording — the small choices with big consequences
+3. Response formats and scale choice
+4. Questionnaire structure and flow
+5. **Break (15 min)**
+6. R lab: cleaning messy survey exports
+7. Ethics: consent, sensitive items, respondent burden
+8. Industry: Qualtrics demo
+9. Team questionnaire draft workshop
+
+::: {.notes}
+Draft workshop is peer-review of team questionnaire drafts. Teams
+should have brought a draft on their laptop. If not, they draft during
+the workshop.
+:::
+
+## Learning objectives
+
+By end of session 4 you will be able to:
+
+- Move from a construct to items to a well-flowing questionnaire
+- Identify sources of measurement error from wording, format, and order
+- Load, clean, and reverse-code survey exports in R
+- Peer-review a questionnaire against a design checklist
+
+::: {.notes}
+Peer-review is a graduate-level skill. Encourage constructive critique
+- teams that give tough feedback get tough feedback back, and all
+questionnaires improve.
+:::
+
+# Part 1 — Construct to item {background-color="#7A003C"}
+
+## The construct-item-questionnaire chain
+
+- **Construct** — the abstract thing you want to measure (brand attachment, satisfaction, price sensitivity)
+- **Items** — specific questions that operationalise the construct
+- **Questionnaire** — the ordered set of items delivered to respondents
+
+Every item should trace back to a construct. Every construct should have multiple items.
+
+::: {.notes}
+Multiple items per construct is the reliability rationale (Wk 8).
+Single-item measures are unreliable and unvalidated. Rule of thumb:
+3-5 items per construct minimum, more for abstract constructs like
+brand attachment.
+:::
+
+## Example: brand attachment for Maritime Roast
+
+Construct: *how emotionally attached is a subscriber to Maritime Roast?*
+
+Items (5-point agreement):
+
+1. Maritime Roast is part of my morning routine
+2. I feel connected to Maritime Roast as a brand
+3. I would be upset if Maritime Roast disappeared
+4. I recommend Maritime Roast to friends
+5. My identity is tied to being a Maritime Roast customer
+
+::: {.notes}
+Draw the loading from Park et al. brand-attachment work if familiar.
+Not perfect items - discuss with the class which is weakest. Item 5
+is arguably measuring self-brand connection, not attachment - shows
+how items can drift from the construct.
+:::
+
+## Item wording principles
+
+- **Simple language.** Grade 6-8 reading level.
+- **One idea per item.** No double-barrelled questions.
+- **Neutral framing.** Not leading, not loaded.
+- **Answerable.** Respondent has the information.
+- **Universally applicable.** No assumed context.
+
+::: {.notes}
+Double-barrelled example: "Maritime Roast is high-quality and
+affordable." What if it's high-quality but expensive? Respondent can't
+answer without splitting. Teach students to sniff these out.
+:::
+
+## Question types
+
+- **Closed-ended** (fixed options): easier to analyse, faster to answer, but constrained
+- **Open-ended** (free text): richer answers, harder to analyse, longer to answer
+
+Most quantitative surveys are 90% closed-ended, with 1-2 open-ended for depth.
+
+::: {.notes}
+Open-ended is now more tractable with LLM-based coding but still
+adds time and cost. Keep to 1-2 in most surveys - "What is the most
+important thing you'd change?" is a classic and always earns its
+place.
+:::
+
+# Part 2 — Response formats {background-color="#7A003C"}
+
+## Common closed-ended formats
+
+- **Dichotomous:** yes/no, agree/disagree
+- **Multiple choice:** pick one
+- **Multiple select:** pick all that apply
+- **Likert:** 5- or 7-point agreement
+- **Semantic differential:** bipolar adjectives (Hot ← → Cold)
+- **Numeric rating:** 0-10, NPS
+- **Constant sum:** allocate 100 points
+- **Rank order:** rank options 1 to k
+
+::: {.notes}
+Each has its use case. Likert is workhorse for attitudes. NPS is
+workhorse for loyalty. Constant sum for trade-offs (budget
+allocation). Rank order for preference among small option sets.
+:::
+
+## Likert design choices
+
+- **Points:** 5 vs 7 vs 10
+- **Labels:** all points labelled? or just endpoints?
+- **Neutral point:** included or forced choice?
+- **Reversed items:** to detect straight-lining
+
+Best practice for MR: 5- or 7-point, all points labelled, include neutral, reverse ~20% of items.
+
+::: {.notes}
+Debate about neutral point: forcing a choice eliminates fence-sitting
+but introduces measurement error (respondents fake a side). Include a
+neutral option and note the proportion who use it.
+:::
+
+## Semantic differential
+
+Adjective pairs:
+
+- Boring ← 1 2 3 4 5 6 7 → Exciting
+- Cheap ← 1 2 3 4 5 6 7 → Expensive
+- Local ← 1 2 3 4 5 6 7 → Global
+
+Good for brand image work.
+
+::: {.notes}
+Classic for brand perception. Osgood, Suci, Tannenbaum 1957. Still
+widely used in brand tracking. Osgood found three universal
+dimensions: evaluation, potency, activity.
+:::
+
+## NPS (Net Promoter Score)
+
+"How likely are you to recommend [X] to a friend or colleague?" 0-10.
+
+- Promoters: 9-10
+- Passives: 7-8
+- Detractors: 0-6
+- NPS = %Promoters − %Detractors
+
+Simple, standard, widely tracked. Researchers dislike the information loss.
+
+::: {.notes}
+NPS has been challenged academically (Keiningham et al. 2007) but
+remains an industry standard because CEOs understand it and it tracks
+consistently. For your project, use NPS if the client tracks NPS;
+otherwise use a fuller satisfaction scale.
+:::
+
+# Part 3 — Questionnaire structure {background-color="#7A003C"}
+
+## Order effects
+
+- **Screening** first (do they qualify?)
+- **Warm-up** questions (easy, engaging)
+- **Main content** (grouped by topic)
+- **Sensitive items** later (once trust built)
+- **Demographics** last (unless needed for skip logic)
+
+Random or fixed order for battery items? Random reduces order bias.
+
+::: {.notes}
+Order effects are real. Asking about brand awareness before brand
+preference primes the awareness set. Randomise brand order within
+awareness questions.
+:::
+
+## Length matters
+
+- Under 5 min: high completion rates
+- 5-10 min: standard, moderate drop-out
+- 10-15 min: needs incentive
+- Over 15 min: high drop-out, quality decay
+
+Budget your questions. Every added question increases drop-out.
+
+::: {.notes}
+Real-world constraint. If a client wants a 25-min survey, push back -
+data quality suffers. Better to run two shorter surveys with
+overlapping samples.
+:::
+
+## Skip logic and piping
+
+- **Skip logic:** show/hide questions based on prior answers
+- **Piping:** insert prior answers into later question text ("You said you subscribe to [Signature]. How satisfied with [Signature]?")
+
+Modern survey platforms (Qualtrics, SurveyMonkey) do these easily.
+
+::: {.notes}
+Show a Qualtrics example if possible. Skip logic reduces respondent
+burden (non-subscribers don't see subscription-tier questions).
+Piping increases relevance (personalised feel).
+:::
+
+## Straight-lining and speeder checks
+
+Build in:
+
+- **1-2 reverse-worded items** in every battery (detects straight-lining)
+- **Attention check** halfway through ("Select 'Somewhat agree' for quality control")
+- **Time-in-survey** captured for post-hoc speeder identification
+
+Flag ~5-10% typical straight-line/speeder rate.
+
+::: {.notes}
+Attention checks are contested - some argue they annoy honest
+respondents. Reasonable compromise: one attention check in a 15-min
+survey, framed politely.
+:::
+
+## Break — 15 minutes {background-color="#FDBF57"}
+
+::: {.notes}
+Have `kaggle_survey_raw.csv` open on the projector. This is a real
+messy dataset - students will feel the pain of dirty data quickly.
+:::
+
+# Part 4 — R lab: cleaning survey exports {background-color="#7A003C"}
+
+## Loading a real messy export
+
+```{r}
+#| eval: false
+library(tidyverse)
+library(janitor)
+
+raw <- read_csv("data/kaggle_survey_raw.csv")
+
+dim(raw)
+glimpse(raw)
+```
+
+`kaggle_survey_raw.csv` — Kaggle "Young People Survey," 1010 respondents, mixed dirty.
+
+::: {.notes}
+Live-load. Show glimpse. Column names are inconsistent (spaces,
+capitals, punctuation). Values include "" for missing but sometimes
+NA, and sometimes actual "NA" as a string. This is real-world messy.
+:::
+
+## Fix column names with `janitor`
+
+```{r}
+#| eval: false
+raw <- raw |> clean_names()
+names(raw)
+```
+
+`clean_names()` converts to snake_case, replaces punctuation, deduplicates.
+
+::: {.notes}
+This is the first thing every dirty-data workflow should do. Saves
+hours of quoting weird column names later. `janitor` is a
+Wickham-adjacent package with many small QoL functions.
+:::
+
+## Reverse-coding
+
+```{r}
+#| eval: false
+# Suppose items "loneliness_1" and "loneliness_2" are reverse-worded
+# 1 = strongly disagree, 5 = strongly agree
+# Reverse: 6 - x
+
+raw <- raw |>
+  mutate(across(c(loneliness_1, loneliness_2), ~ 6 - .))
+```
+
+Reverse before computing composite scores.
+
+::: {.notes}
+Common bug: forgetting to reverse. Then Cronbach's alpha comes back
+low or negative and students panic. Always document which items are
+reverse-coded in a code book.
+:::
+
+## Handling missing values
+
+```{r}
+#| eval: false
+# Count missing per column
+raw |>
+  summarise(across(everything(), ~ sum(is.na(.)))) |>
+  pivot_longer(everything(), names_to = "col", values_to = "n_missing") |>
+  arrange(desc(n_missing)) |>
+  head(20)
+```
+
+Decide per column: drop, impute, or keep NA.
+
+::: {.notes}
+Show output. Some columns will be nearly all missing (skip logic).
+Others just have a few. The decision to impute vs drop is a research
+call - impute for models that need complete cases, drop for
+descriptive analysis. Never blanket-impute silently.
+:::
+
+## Straight-line detection
+
+```{r}
+#| eval: false
+# Compute row-wise SD across a battery of Likert items
+music_items <- raw |>
+  select(starts_with("music_"))
+
+raw$music_sd <- apply(music_items, 1, sd, na.rm = TRUE)
+
+# Straight-liners have very low SD
+raw |>
+  arrange(music_sd) |>
+  select(music_sd, starts_with("music_")) |>
+  head(10)
+```
+
+::: {.notes}
+Row-wise operations are slightly awkward in tidyverse - the `apply()`
+call keeps it simple. Threshold for flagging depends on the battery -
+typically SD < 0.3 for a 5-point scale is suspicious.
+:::
+
+## Composite scale construction
+
+```{r}
+#| eval: false
+raw <- raw |>
+  mutate(
+    music_score = rowMeans(select(., starts_with("music_")), na.rm = TRUE)
+  )
+
+hist(raw$music_score)
+```
+
+Mean or sum? Use mean if items may have missing values; sum otherwise.
+
+::: {.notes}
+For your project questionnaire, plan the composites at design time.
+Documenting which items compose which construct saves confusion at
+analysis time.
+:::
+
+## In-lab exercise
+
+Using `kaggle_survey_raw.csv`:
+
+1. Clean column names
+2. Identify and reverse-code any items that need reversing (check the data dictionary)
+3. Flag straight-liners on the "movies_" battery
+4. Compute a composite "movie enthusiasm" score and plot its distribution
+5. Write your cleaning script as a `.qmd` that renders cleanly
+
+A fuller worked version of this cleaning pipeline is in
+**`solutions-04.qmd`** in this session's folder.
+
+::: {.notes}
+Give ~30 min. Circulate. This lab is a good test of R fluency -
+students who struggle here should invest more time before later
+graded work or the project.
+:::
+
+# Part 5 — Ethics thread {background-color="#7A003C"}
+
+## Informed consent
+
+Every survey must have:
+
+- **Purpose** of the research
+- **Who's collecting** (identifiable sponsor)
+- **What data** is collected and how used
+- **Voluntary participation** and right to withdraw
+- **Data storage** and retention
+- **Contact** for questions
+
+Usually appears on the first page as a consent screen.
+
+::: {.notes}
+Show a real consent screen from a McMaster-approved study if
+available. Length is a trade-off: complete disclosure vs. respondent
+patience. Most panels require standard consent language.
+:::
+
+## Sensitive items
+
+Handle carefully:
+
+- Income, wealth, debt
+- Health conditions, mental health
+- Illegal or stigmatised behaviour
+- Political views, religion
+- Sexual orientation, gender identity
+
+Techniques: bracketed ranges (not exact income), self-administered mode, "prefer not to answer" option, question near end.
+
+::: {.notes}
+Ask: what makes an item "sensitive"? Answer: potential harm from
+disclosure. Different across cultures. Political affiliation is
+low-sensitivity in the US, higher in some countries. Design with the
+population in mind.
+:::
+
+## Respondent burden
+
+- Every question costs the respondent time and attention
+- Long surveys pay in drop-out, not just money
+- Randomise item order in long batteries to spread fatigue
+
+Design for the respondent, not just for your analysis wish-list.
+
+::: {.notes}
+Common failure mode: client stakeholders add "just one more question"
+each. By day 5 the survey is 45 min. Push back. Every question needs
+a plan for how the answer will be used.
+:::
+
+# Part 6 — Industry: Qualtrics {background-color="#7A003C"}
+
+## McMaster has Qualtrics
+
+- Site licence — free for students, staff, faculty
+- Log in at `mcmaster.ca1.qualtrics.com`
+- Full features (survey flow, block logic, distributions, exports)
+
+Anyone who's used a survey tool in Canadian industry has probably used Qualtrics.
+
+::: {.notes}
+Have your Qualtrics account open. 15-min live tour: create survey,
+add block, add question, set skip logic, generate distribution link,
+export as CSV. Students appreciate seeing the tool they'll actually
+use.
+:::
+
+## Qualtrics-to-R workflow
+
+1. Design survey in Qualtrics
+2. Launch (email, link, panel API)
+3. Export data as CSV (with numeric coding, not labels)
+4. Read into R with `read_csv()`
+5. Clean, reverse-code, compute composites
+6. Analyse
+
+Alternate: `qualtRics` package for direct API access.
+
+::: {.notes}
+Numeric coding vs. labels: numeric is easier for analysis but you
+lose the meaning. Best practice: export both, use numeric for
+computation and labels for reporting. `qualtRics` package is nice for
+recurring pulls (e.g., a monthly tracker).
+:::
+
+# Part 7 — Team workshop {background-color="#7A003C"}
+
+## Peer-review your team questionnaire draft
+
+Each team:
+
+1. Trade questionnaire drafts with another team
+2. Apply this checklist:
+   - [ ] Every construct has ≥3 items
+   - [ ] No double-barrelled questions
+   - [ ] Reversed items included
+   - [ ] Length ≤ 12 min
+   - [ ] Consent language present
+3. Return written critique
+
+::: {.notes}
+Time: 25-30 min. Circulate. Push teams to be honest, not polite.
+Every draft has weaknesses. Catching them now saves rework at Wk 8
+(scales revision) and Wk 9 (project deliverable).
+:::
+
+# Part 8 — Wrap-up {background-color="#7A003C"}
+
+## Week 5 preview
+
+- **Concept:** qualitative marketing research (focus groups, IDIs, projective techniques)
+- **Test 1** in Week 5 (covers Lectures 1-4)
+- **R lab compressed** — mostly test administration
+
+Test 1 review sheet on A2L by Friday.
+
+::: {.notes}
+Give students the study advice: focus on process, design vocabulary,
+sampling logic, measurement scales. Practice questions on A2L. Test 1
+will be MC and/or written - exact format TBD.
+:::
+
+## What to study for Test 1
+
+- MR process (7 steps)
+- Research design families (exploratory / descriptive / causal)
+- Scale types (nominal / ordinal / interval / ratio) + legal statistics
+- Data-collection modes and trade-offs
+- Sampling: probability vs non-probability, sample-size logic
+- Questionnaire design principles
+
+::: {.notes}
+Emphasise: I don't test trivia. I test whether students can *apply*
+concepts. Sample questions on A2L show the style.
+:::
+
+## Thank you — questions?
+
+`abbass44@mcmaster.ca`
+
+::: {.notes}
+Stay for test-prep questions and questionnaire peer-review issues.
+:::

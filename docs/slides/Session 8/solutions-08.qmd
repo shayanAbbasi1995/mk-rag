@@ -1,0 +1,116 @@
+---
+title: "Solutions — Session 8: Reliability of the Brand-Attachment Battery"
+subtitle: "M731 · Full worked walkthrough (companion to session-08.qmd)"
+author: "Shay Abbasi"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    embed-resources: true
+    theme: cosmo
+execute:
+  echo: true
+  eval: true
+  warning: false
+  message: false
+---
+
+## Purpose
+
+Full worked version of the Session 8 in-lab exercise: Cronbach's
+alpha, item-total correlations, and a simulated comparison battery.
+
+## Setup
+
+```{r}
+#| label: setup
+library(tidyverse)
+library(psych)
+library(MASS)   # NOTE: MASS::select() masks dplyr::select() - use dplyr::select() explicitly below
+library(corrplot)
+
+survey <- read_csv("data/maritime_survey.csv")
+
+battery <- survey |>
+  dplyr::select(brand_attach_1, brand_attach_2, brand_attach_3, brand_attach_4, brand_attach_5)
+```
+
+## Step 1 — Cronbach's alpha
+
+```{r}
+#| label: alpha
+alpha_result <- alpha(battery)
+alpha_result
+```
+
+**Interpretation.** Overall standardised alpha lands around 0.85-0.86
+— "good" reliability by the Nunnally convention (0.8-0.9), meaning the
+five items are measuring the same underlying construct consistently
+without being so redundant that we'd worry about over-length.
+
+## Step 2 — Item-total correlations and alpha-if-deleted
+
+```{r}
+#| label: item-diagnostics
+alpha_result$item.stats
+alpha_result$alpha.drop
+```
+
+**Interpretation.** Check two things: (1) does any item have a
+corrected item-total correlation below 0.3? (2) does dropping any item
+*raise* alpha? In this simulated battery, all five items were
+constructed with moderate-to-strong loadings (0.68-0.80), so you
+should see no obvious candidate for removal — a "clean" battery,
+useful as a contrast case against a weaker one.
+
+## Step 3 — Correlation heatmap
+
+```{r}
+#| label: fig-heatmap
+#| fig-cap: "Inter-item correlations, brand-attachment battery"
+battery |>
+  cor(use = "pairwise.complete.obs") |>
+  corrplot(method = "color", type = "upper", addCoef.col = "black", tl.col = "black")
+```
+
+**Interpretation.** Moderate, fairly even correlations across all
+item pairs (roughly 0.3-0.5) is the signature of a well-behaved
+single-factor battery — no pair is near-identical (which would signal
+redundancy) and none is near-zero (which would signal an off-construct
+item).
+
+## Step 4 — Simulated comparison: what does "low" alpha look like?
+
+```{r}
+#| label: sim-comparison
+set.seed(731)
+n <- 500
+
+sim_high <- as.data.frame(mvrnorm(n, rep(0, 6), matrix(0.5, 6, 6) + diag(6) * 0.5))
+sim_low  <- as.data.frame(mvrnorm(n, rep(0, 6), matrix(0.2, 6, 6) + diag(6) * 0.8))
+
+cat("Inter-item r = 0.5 -> alpha =", round(alpha(sim_high)$total$raw_alpha, 2), "\n")
+cat("Inter-item r = 0.2 -> alpha =", round(alpha(sim_low)$total$raw_alpha, 2), "\n")
+```
+
+**Interpretation.** This is the mechanism behind the number: alpha
+rises with average inter-item correlation (holding item count fixed).
+The Maritime Roast brand-attachment battery, at ~0.85, sits closer to
+the r=0.5 simulation than the r=0.2 one — real, moderately-strong
+shared signal across items.
+
+## Step 5 — Recommendation for Maritime Roast
+
+> The 5-item brand-attachment battery is reliable (α ≈ 0.85) with no
+> weak items to drop. It's ready to use as a composite score in
+> downstream analysis (e.g., as a regression predictor in Week 11)
+> without further revision. If the team wants a shorter battery for
+> survey-length reasons, dropping the weakest-loading item would cost
+> only marginal reliability — but there's no evidence that's necessary
+> here.
+
+## Take-away for students
+
+Alpha alone is a headline number; item-total correlations and
+alpha-if-deleted are the diagnostic tools that tell you *what to do*
+about a weak battery. Report all three, not just the top-line alpha.

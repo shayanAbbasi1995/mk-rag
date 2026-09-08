@@ -1,0 +1,726 @@
+---
+title: "Session 8 — Marketing Scales: Reliability and Validity"
+subtitle: "M731 Marketing Research · Comprehensive Lecture Notes"
+author: "Shay Abbasi"
+date: "2026-10-28"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    theme: cosmo
+    self-contained: true
+---
+
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE, message = FALSE, warning = FALSE)
+```
+
+# Rating Scale Formats in Marketing Research
+
+## Why Multi-Item Measurement?
+
+Psychological and marketing constructs — brand attachment, customer satisfaction, loyalty, trust, perceived quality — are latent variables. They cannot be directly observed the way a sales transaction or a click can. Instead, they must be inferred from observable indicators: the items on a questionnaire. A single item is a noisy proxy. Averaging across multiple items reduces random measurement error, yielding a more reliable estimate of the true latent construct. This is the fundamental logic of multi-item scales in marketing research.
+
+The choice of which rating format to use shapes what you can measure, how precisely you can measure it, and how burdensome the questionnaire becomes for respondents.
+
+## Likert Scales
+
+The Likert scale, introduced by Rensis Likert in 1932, asks respondents to indicate their level of agreement with a statement on a symmetric response scale. The most common formats use 5 or 7 response options, ranging from "Strongly Disagree" to "Strongly Agree" with a neutral midpoint.
+
+Key design decisions for Likert items:
+
+**Number of response options.** Five points are sufficient for most purposes and reduce cognitive load. Seven points add precision and may be preferable when the item will be used in correlational analyses — the extra variance helps detect relationships. Research by Krosnick & Fabrigar (1997) suggests that fully labelled 5-point scales outperform endpoint-only scales in reliability and validity.
+
+**Labelling every option.** All response options should carry verbal labels, not just the endpoints. Research consistently shows that fully labelled scales produce more reliable responses because respondents do not have to infer the meaning of unlabelled middle options. Labelling "4" on a 7-point scale as "Somewhat agree" rather than leaving it blank improves measurement quality.
+
+**The neutral midpoint.** Including a midpoint ("Neither agree nor disagree") respects the reality that some respondents are genuinely neutral. Forcing a choice by removing the midpoint does not convert neutral respondents into authentic opinions — it introduces acquiescence bias as respondents pick a side arbitrarily.
+
+**Reverse-coded items.** Approximately 20% of items in a battery should be reverse-coded (negatively worded, so that agreement indicates lower levels of the construct). These items serve as a quality control mechanism: respondents who are straight-lining — giving the same response to every item without reading — will produce inconsistent responses on reverse items, flagging their data for review.
+
+## Semantic Differential Scales
+
+Semantic differential scales present respondents with bipolar adjective pairs anchored at opposite ends of a response continuum. Rather than measuring agreement with a statement, they ask respondents to locate a concept along multiple dimensions.
+
+Charles Osgood and colleagues (Osgood, Suci & Tannenbaum, 1957) identified three universal dimensions underlying semantic differential responses:
+
+- **Evaluation** (good-bad, pleasant-unpleasant, positive-negative)
+- **Potency** (strong-weak, large-small, powerful-powerless)
+- **Activity** (active-passive, fast-slow, excitable-calm)
+
+In brand research, semantic differentials are commonly used to capture brand personality and image perceptions. An item might ask: "On a scale from 1 to 7, where would you place the Maritime Roast brand? [Traditional . . . . . . . Modern]"
+
+The advantage of semantic differentials is that they capture connotative meaning — the associations and feelings attached to a concept — rather than just propositional attitudes (agreement/disagreement). Their limitation is that they work best for constructs with clear bipolar opposites, which not all marketing constructs have.
+
+## MaxDiff (Best-Worst Scaling)
+
+MaxDiff has largely replaced multi-item rating scales in commercial preference research for one important application: prioritising features, attributes, or benefits when respondents need to evaluate many options.
+
+The task shows respondents a small set of items (typically 4–6) and asks them to identify the best and worst. This is repeated with different sets drawn from a larger item universe, using an experimental design that ensures every item appears roughly the same number of times and in varied company. The result is a ratio-level preference score for each item that is comparable across respondents.
+
+MaxDiff's advantages are substantial. Rating all items on a 10-point importance scale produces results that look like "everything is important" because respondents avoid extreme negative ratings. MaxDiff forces trade-offs: selecting the best item in each set implicitly ranks it above the others shown, producing genuine discrimination. It also sidesteps the response-style biases (acquiescence, extreme response, central tendency) that plague rating scales, because the forced-choice format leaves no room for scale-use idiosyncrasies.
+
+The limitation is analytical complexity — MaxDiff data require probabilistic scaling or hierarchical Bayes analysis and cannot be simply averaged. Commercial software (Sawtooth Software's Lighthouse Studio) handles this well, but it is beyond typical course project scope.
+
+## Constant Sum Scales
+
+Constant sum scales ask respondents to allocate a fixed total (usually 100 points) across a set of items to reflect their relative importance or preference. For example: "Allocate 100 points across these five Maritime Roast subscription benefits to reflect how important each is to you."
+
+The forced-choice structure reveals relative rather than absolute preferences: a respondent who genuinely values freshness 40% and convenience 20% cannot express both at 8/10. The limitation is cognitive load — respondents can reasonably allocate 100 points across 4–6 items, but the task becomes unreliable beyond that range.
+
+# Reliability: Measurement Consistency
+
+## The Concept of Reliability
+
+Reliability refers to the consistency of a measurement. A reliable measure produces approximately the same result under equivalent conditions. Reliability is a necessary but not sufficient condition for validity: a reliable measure is consistent, but it may consistently measure the wrong thing. An unreliable measure cannot be valid, because its variance is dominated by noise rather than true-score variation.
+
+Classical test theory formalises this with the true-score model:
+
+$$X = T + E$$
+
+where X is the observed score, T is the true score, and E is random measurement error. Reliability is the ratio of true-score variance to observed-score variance: $\rho_{XX'} = \sigma^2_T / \sigma^2_X$. A perfectly reliable instrument has no error variance; an unreliable one has true-score variance swamped by noise.
+
+## Types of Reliability
+
+**Test-retest reliability** measures stability across time. The same instrument is administered to the same respondents on two occasions, and the correlation between scores is the test-retest reliability coefficient. This is theoretically the purest form of reliability, but it is rarely practical in commercial marketing research: fielding a survey twice with the same panel incurs cost, and the time gap introduces genuine attitude change (which is not measurement error) alongside random fluctuation.
+
+**Parallel-forms reliability** administers two versions of the same instrument to the same respondents simultaneously or in counterbalanced order. It assesses equivalence across item wordings. It is rarely used in practice because developing two validated versions of every instrument is expensive.
+
+**Split-half reliability** divides the items in a battery into two halves and correlates the two half-scores. It is a single-administration method but has the limitation of being arbitrary — different splits produce different estimates. Spearman-Brown correction adjusts for the fact that half-length tests are less reliable than full-length tests.
+
+**Internal consistency** generalises the split-half concept to all possible ways of splitting the item set, producing a single summary reliability estimate. Cronbach's alpha is the dominant internal consistency estimator. It does not require multiple administration occasions and is computable from a single survey data collection.
+
+## Cronbach's Alpha: The Standard Estimator
+
+Cronbach's alpha (Cronbach, 1951) quantifies internal consistency — the degree to which items in a battery correlate with each other. The formula is:
+
+$$\alpha = \frac{k}{k-1} \left(1 - \frac{\sum_{i=1}^{k} \sigma^2_{Y_i}}{\sigma^2_X}\right)$$
+
+where k is the number of items, $\sigma^2_{Y_i}$ is the variance of item i, and $\sigma^2_X$ is the variance of the composite score (the sum of all items). The term in parentheses captures the proportion of composite variance not accounted for by item variances — which represents the covariance among items, i.e., shared variance.
+
+**Intuition:** When items are uncorrelated, the composite variance equals the sum of item variances (no covariance bonus), and alpha approaches zero. When items are perfectly correlated, composite variance is much larger than the sum of item variances, and alpha approaches 1. The fraction $\sum \sigma^2_{Y_i} / \sigma^2_X$ is small when items share much variance, making the expression in parentheses large, and alpha large.
+
+**Conventional thresholds** (following Nunnally, 1978):
+
+- α > 0.90: Excellent — may indicate redundant items
+- α 0.80–0.90: Good — appropriate for most research
+- α 0.70–0.80: Acceptable for exploratory research
+- α 0.60–0.70: Questionable — revise items
+- α < 0.60: Poor — substantial revision needed
+
+These are conventions, not laws. For exploratory research with novel constructs, 0.60 may be acceptable. For high-stakes clinical or diagnostic measurement, 0.90 or higher is typically expected. For most M731 project work, targeting 0.75 or above is reasonable.
+
+## What Alpha Does and Does Not Measure
+
+Alpha is an estimate of the lower bound of reliability, not reliability itself. It achieves equality with true reliability only under the assumption of tau-equivalence — that every item contributes equally to the latent construct (has the same factor loading). When loadings vary, alpha underestimates reliability.
+
+More importantly, alpha is a measure of internal consistency, not unidimensionality. A battery measuring two distinct but moderately correlated constructs may produce a high alpha if the two constructs are positively correlated. High alpha is necessary but not sufficient evidence that a battery measures a single construct. Factor analysis (Session 9) is the appropriate tool for assessing dimensionality.
+
+The inflation of alpha with scale length is worth noting explicitly. Adding more items to a battery — even mediocre items — will always increase alpha unless the new items have zero correlation with the rest. This creates an incentive to lengthen scales artificially. A 4-item battery with α = 0.76 and conceptually distinct items is better science than a 12-item battery with α = 0.96 where items 1 through 12 are essentially paraphrases of each other.
+
+## The Item-Total Correlation
+
+For each item in a battery, the corrected item-total correlation is the Pearson correlation between that item's responses and the sum of all other items (excluding the focal item, which is why it is "corrected"). This is the primary diagnostic for identifying problematic items:
+
+- Items with corrected item-total correlation **below 0.30** are candidates for removal — they are not contributing to the measurement of the shared construct
+- Items with **negative** corrected item-total correlation are almost certainly mis-coded reverse items; check the reverse-scoring before considering removal
+- Items with **corrected item-total correlation above 0.70** may be so similar to others that they add little new information — potential candidates for scale shortening if length is a concern
+
+The "alpha if item deleted" statistic complements the item-total correlation. For each item, it reports what the overall alpha would be if that item were removed. If dropping an item raises alpha by more than 0.02–0.03 points, seriously consider removing it. If dropping it would lower alpha, the item is contributing.
+
+## Computing Alpha in R
+
+The `psych::alpha()` function is the standard implementation for marketing research purposes. It produces overall alpha, item-level statistics, and the alpha-if-deleted diagnostics in a single output:
+
+```{r}
+#| label: alpha-basic
+
+library(psych)
+library(tidyverse)
+
+# Load data
+survey <- read_csv("data/maritime_survey.csv")
+
+# Isolate the multi-item battery
+battery <- survey |>
+  select(brand_attach_1, brand_attach_2, brand_attach_3,
+         brand_attach_4, brand_attach_5)
+
+# Compute alpha with full diagnostics
+alpha_result <- alpha(battery)
+alpha_result
+```
+
+The output contains several sections. The `$total` section reports raw alpha and standardised alpha (which is based on the correlation matrix rather than the covariance matrix — use raw alpha unless your items use different response scales). The `$item.stats` section reports the corrected item-total correlation (`r.drop`) and other item-level statistics. The `$alpha.drop` section shows what alpha would be without each item.
+
+## Simulating the Relationship Between Inter-Item Correlation and Alpha
+
+Working through a simulation is the clearest way to build intuition about what Cronbach's alpha measures. The following code generates data at different inter-item correlation levels and shows the resulting alpha values:
+
+```{r}
+#| label: alpha-simulation
+
+library(MASS)
+library(psych)
+
+# Function: simulate alpha for a given inter-item correlation
+sim_alpha <- function(r_inter, k = 6, n = 500) {
+  sigma <- matrix(r_inter, k, k)   # k×k correlation matrix
+  diag(sigma) <- 1                  # set diagonal to 1
+  dat <- as.data.frame(mvrnorm(n, rep(0, k), sigma))
+  alpha(dat)$total$raw_alpha
+}
+
+# Compute alpha across a range of inter-item correlations
+r_values <- seq(0.1, 0.9, by = 0.1)
+alphas   <- sapply(r_values, sim_alpha)
+
+data.frame(
+  inter_item_r    = r_values,
+  cronbach_alpha  = round(alphas, 3)
+)
+```
+
+The output shows that Nunnally's 0.70 threshold maps to an average inter-item correlation of approximately 0.30 — a moderate correlation. Items that genuinely measure the same construct should be achieving inter-item correlations in the 0.30–0.60 range for a well-designed battery.
+
+## The Redundancy Problem at Very High Alpha
+
+Very high alpha (above 0.90) is not an unqualified virtue. It often signals that items are near-paraphrases of each other, adding length to the questionnaire without adding new construct coverage. Consider two batteries:
+
+- **Battery A:** 12 items, all essentially restating the same idea ("I like this brand," "This brand appeals to me," "I am fond of this brand" etc.), α = 0.97
+- **Battery B:** 4 items, each measuring a distinct aspect of brand attachment (self-connection, emotional bond, cognitive salience, behavioural commitment), α = 0.78
+
+Battery B is the better measurement instrument — it covers the construct domain more thoroughly with less respondent burden, even though its alpha is lower.
+
+# Beyond Alpha: McDonald's Omega
+
+## Why Alpha Has Critics
+
+Cronbach's alpha rests on the assumption of tau-equivalence: that every item contributes equally to the latent construct (all factor loadings equal). This is a strong assumption that is rarely met in practice. When factor loadings vary across items — which they almost always do — alpha underestimates true reliability.
+
+Alpha also cannot distinguish between a unidimensional battery and a multidimensional one. A battery covering two moderately correlated subdimensions may produce a high alpha, misleadingly suggesting a single, coherent construct.
+
+Interestingly, Cronbach himself acknowledged these limitations in a 2004 paper he co-authored before his death, and recommended replacing alpha with better estimators. McDonald's omega (ω) is the preferred alternative.
+
+## McDonald's Omega
+
+Omega is derived from a factor model rather than from the covariance matrix directly. It estimates the proportion of composite variance attributable to the common factor:
+
+$$\omega = \frac{(\sum \lambda_i)^2}{(\sum \lambda_i)^2 + \sum \delta_i}$$
+
+where $\lambda_i$ are the standardised factor loadings and $\delta_i = 1 - \lambda_i^2$ are the item-level error variances.
+
+Two versions of omega are reported by `psych::omega()`:
+
+- **ω_h (omega hierarchical):** the proportion of variance attributable to the general factor alone. For a strictly unidimensional scale, ω_h should equal ω_t. A large gap between ω_h and ω_t signals that group factors (subdimensions) are absorbing substantial variance.
+- **ω_t (omega total):** total reliability, including variance from both the general factor and any group factors.
+
+```{r}
+#| label: mcdonald-omega
+
+library(psych)
+
+battery <- survey |>
+  select(brand_attach_1:brand_attach_5)
+
+# Omega hierarchical and total
+omega_result <- omega(battery)
+
+# Key values:
+# omega_result$omega_h  — general factor portion
+# omega_result$omega.tot — total omega
+```
+
+For a clearly unidimensional scale, alpha and omega_t will be similar. A large gap between omega_h and omega_t (or between alpha and omega_t) signals a multidimensional battery that should be split or redesigned before use as a single composite.
+
+# Validity: What the Scale Actually Measures
+
+## Why Reliability Is Not Enough
+
+A reliable scale measures something consistently. But what does it measure? Validity is the extent to which a scale measures the construct it is intended to measure. The two concepts are related but distinct: reliability is a prerequisite for validity (an unreliable measure cannot be valid), but reliability does not guarantee validity.
+
+The bathroom scale analogy is apt: a scale that consistently reads 5 kilograms higher than the true weight is perfectly reliable but invalid. A scale that gives a different reading each time is neither reliable nor valid.
+
+## Content Validity
+
+Content validity asks whether the items in a battery collectively represent the full domain of the construct. A satisfaction battery that only measures service quality satisfaction but misses product quality and value-for-money satisfaction is not content-valid for overall satisfaction, even if its items are internally consistent.
+
+Content validity is assessed through expert review rather than statistical computation. Typically 5–10 subject-matter experts review a draft item set and rate each item for relevance to the construct definition. The Content Validity Index (CVI) averages expert ratings across items. Items with low CVI scores are revised or dropped; items covering uncaptured aspects of the construct are added.
+
+In commercial marketing research, formal content validity analysis is rare — review is typically conducted through internal team evaluation and client sign-off. Knowing what content validity requires, however, helps identify when a scale you encounter in the literature may be missing important aspects of the construct.
+
+## Construct Validity
+
+Construct validity — the most important form of validity for marketing research — has two components:
+
+**Convergent validity:** A scale measuring brand attachment should correlate substantially with other measures of the same construct — other published brand attachment scales, behavioural measures of attachment (share of wallet, willingness to pay a premium, resistance to negative information). High convergence provides evidence that the items are indeed measuring brand attachment rather than something else.
+
+**Discriminant validity:** A brand attachment scale should not correlate so highly with related-but-distinct constructs (brand satisfaction, brand familiarity, product involvement) that the constructs cannot be distinguished. Discriminant validity establishes that your scale is measuring something distinguishable from adjacent constructs.
+
+Both forms of convergent and discriminant validity are assessed empirically. In academic work, this typically involves measuring multiple constructs from the same respondents and examining the pattern of intercorrelations, often using a Multi-Trait Multi-Method (MTMM) matrix or Structural Equation Modeling (SEM).
+
+## The Multi-Trait Multi-Method Matrix
+
+Campbell and Fiske (1959) formalised construct validation through the MTMM matrix. The framework requires measuring multiple traits (constructs) using multiple methods (e.g., self-report, peer report, observational coding). The matrix contains four types of entries:
+
+**Reliability diagonal:** A single trait measured by a single method, assessed twice. Should be the highest values in the matrix (test-retest reliability).
+
+**Validity diagonal (monotrait-heteromethod):** The same trait measured by two different methods. Should be high — this is convergent validity across methods.
+
+**Heterotrait-monomethod triangle:** Different traits measured by the same method. Should be lower than the validity diagonal — but can be inflated by method artefacts.
+
+**Heterotrait-heteromethod triangle:** Different traits measured by different methods. Should be the lowest values — pure construct discrimination without method bias.
+
+Evidence for construct validity requires: (1) validity diagonal entries substantially above zero, (2) validity diagonal entries higher than the corresponding heterotrait-monomethod entries, and (3) validity diagonal entries higher than the corresponding heterotrait-heteromethod entries.
+
+The MTMM design is rarely implemented in commercial marketing research due to its data requirements (multiple measurement methods, not just multiple items). In academic scale development following Churchill's (1979) paradigm, it represents the gold standard.
+
+## Average Variance Extracted and Composite Reliability
+
+Fornell and Larcker (1981) introduced two operational criteria for construct validity that are now standard in SEM-based marketing research:
+
+**Average Variance Extracted (AVE)** measures the average proportion of item variance attributable to the latent factor:
+
+$$AVE = \frac{\sum \lambda_i^2}{\sum \lambda_i^2 + \sum \delta_i}$$
+
+where $\lambda_i$ are standardised factor loadings and $\delta_i = 1 - \lambda_i^2$ are item error variances. An AVE above 0.50 indicates that more than half the variance in the indicators comes from the construct rather than error — evidence of convergent validity.
+
+**Composite Reliability (CR)** is an alternative to Cronbach's alpha that does not assume tau-equivalence:
+
+$$CR = \frac{(\sum \lambda_i)^2}{(\sum \lambda_i)^2 + \sum \delta_i}$$
+
+For discriminant validity, the Fornell-Larcker criterion requires that each construct's AVE exceeds the squared correlation between that construct and any other construct in the model. This ensures that constructs share more variance with their own indicators than with other constructs.
+
+Computing these requires factor analysis output (covered in Session 9):
+
+```{r}
+#| label: ave-computation
+
+library(psych)
+
+# Run a single-factor EFA to get loadings
+fa_attach <- fa(
+  r        = battery,
+  nfactors = 1,
+  fm       = "ml",    # maximum likelihood
+  rotate   = "none"
+)
+
+loadings <- fa_attach$loadings[, 1]   # standardised loadings
+
+# Average Variance Extracted
+ave <- sum(loadings^2) / (sum(loadings^2) + sum(1 - loadings^2))
+cat("AVE:", round(ave, 3), "\n")
+
+# Composite Reliability
+cr_num   <- sum(loadings)^2
+cr_denom <- sum(loadings)^2 + sum(1 - loadings^2)
+cat("CR:", round(cr_num / cr_denom, 3), "\n")
+```
+
+AVE and CR will be revisited in Session 9 when full factor analysis is covered.
+
+## Criterion Validity
+
+Criterion validity assesses whether a scale predicts an external criterion:
+
+**Concurrent validity:** Does the scale correlate with a criterion measured at the same time? A brand attachment scale should correlate with concurrent self-reported spending on the brand.
+
+**Predictive validity:** Does the scale predict a future criterion? A loyalty intention scale should predict whether the respondent actually renews their subscription six months later.
+
+Predictive validity is the most practically compelling form of validity in marketing research — it establishes that the measure has genuine forecasting utility. This is the empirical defence most often offered for NPS (Reichheld, 2003): the claim that it predicts firm revenue growth. That claim has been substantially contested in the academic literature (Keiningham et al., 2007), who showed that ACSI-based satisfaction items predict growth at least as well.
+
+# The Churchill (1979) Scale Development Paradigm
+
+## An 8-Step Research Programme
+
+Gilbert Churchill's 1979 *Journal of Marketing Research* paper — with over 18,000 citations, one of the most influential methodology papers in marketing — argued that scale development should follow a systematic, multi-study research programme rather than a one-shot questionnaire design. His eight-step protocol remains the template for academic marketing scale development:
+
+1. **Specify the domain of the construct.** Define precisely what the construct includes and excludes. What behaviours, cognitions, and feelings constitute brand attachment? What does not?
+
+2. **Generate a sample of items.** Use theory, qualitative research, and expert input to generate a pool of items that covers the construct domain — typically far more items than the final scale will contain.
+
+3. **Collect data (pilot study).** Field the item pool with an appropriate sample.
+
+4. **Purify the measure.** Use item analysis (corrected item-total correlations, alpha-if-deleted) and factor analysis to identify and remove weak items. Revise retained items as needed.
+
+5. **Collect data (main study).** Field the purified scale with a new, independent sample.
+
+6. **Assess reliability.** Compute Cronbach's alpha (and ideally omega) on the main study data.
+
+7. **Assess validity.** Examine convergent and discriminant validity, ideally through MTMM analysis or SEM with related constructs.
+
+8. **Develop norms.** If the scale is intended for repeated use or benchmarking, establish normative data from representative samples.
+
+The key insight of Churchill's paradigm is that steps 4 and 5 use independent samples. Purifying a scale on one sample and validating it on the same sample is methodologically flawed — the purification step capitalises on chance relationships in that specific sample that may not replicate. The validation sample must be fresh.
+
+## What Churchill Warned Against
+
+Churchill (1979) identified common failures that remained prevalent when he wrote, and that persist today:
+
+**Narrowly worded items.** Items that capture only a subset of the construct domain will produce high internal consistency (because they all measure the same narrow slice) while missing important aspects of the construct. A brand attachment battery that only measures affective bonding without capturing cognitive salience or self-brand connections is narrowly valid.
+
+**Homogeneous samples.** Scale validation on a sample with restricted variance in the construct — such as a sample of brand loyalists measuring brand loyalty — will artificially inflate reliability. The true test of a scale is its performance across the full range of the construct.
+
+**Validating on the purification sample.** As noted above, this capitalises on chance and overstates how well the scale will perform in new data.
+
+**Reporting only internal consistency.** Alpha is the easiest reliability index to compute and the least informative about construct validity. Churchill explicitly called for evidence beyond alpha.
+
+## Rossiter's C-OAR-SE Critique
+
+Rossiter (2002) challenged the Churchill paradigm from a conceptual measurement perspective, arguing that the paradigm's empirical criteria (particularly alpha) are appropriate only for a specific class of constructs — reflective constructs — and are actively misleading for others.
+
+A **reflective construct** is one where the latent variable causes the observed indicators. Brand attachment causes respondents to report feeling connected to the brand, emotionally bonded, and seeing the brand as part of themselves. Because the items share a common cause (the latent construct), they should be correlated — which is what alpha measures.
+
+A **formative (composite) construct** is one where the observed components define or constitute the construct rather than being caused by it. Socioeconomic status (SES) is the classic example: SES is composed of income, education, and occupational prestige. These components do not need to correlate — high income does not logically imply high education. Adding an "alpha check" to a formative construct is a category error. Dropping an item because it lowers alpha means potentially dropping a conceptually essential component.
+
+The practical implications for M731 projects:
+
+- Constructs like satisfaction, trust, attachment, and loyalty are reflective. Use alpha; item purification is appropriate.
+- Constructs like "marketing mix adoption," "brand health," or "service quality" (which aggregates across tangibles, reliability, responsiveness, assurance, and empathy) may be formative. Do not apply alpha as a validity criterion.
+
+| Dimension | Reflective | Formative |
+|-----------|-----------|----------|
+| Causal direction | Construct → Items | Items → Construct |
+| Items should correlate? | Yes | Not necessarily |
+| Alpha appropriate? | Yes | No |
+| Drop items to improve alpha? | Acceptable | No — each item may add unique content |
+| Factor analysis appropriate? | Yes | Not in the traditional sense |
+| Example | Brand attachment | Socioeconomic status |
+
+# Composite Scores and Scale Use
+
+## From Items to Composites
+
+Once you are confident in the reliability and validity of a multi-item battery, analyse the composite score rather than individual items in downstream analyses. The composite score averages out random error across items, providing a more reliable estimate of the true latent construct.
+
+The standard method is to compute row means across items (after ensuring all items are in the same direction — i.e., reverse-scored items have been recoded):
+
+```{r}
+#| label: composite-score
+
+library(tidyverse)
+
+survey <- survey |>
+  mutate(
+    # First ensure reverse item is correctly coded
+    brand_attach_3_r = 8 - brand_attach_3,   # for 7-point scale: 8 - x
+
+    # Then compute the composite
+    brand_attachment = rowMeans(
+      select(., brand_attach_1, brand_attach_2,
+             brand_attach_3_r, brand_attach_4, brand_attach_5),
+      na.rm = TRUE
+    )
+  )
+```
+
+Using `rowMeans()` rather than `rowSums()` keeps the composite on the same scale as the original items (e.g., 1–7), which makes interpretation more natural.
+
+## When to Use Mean vs. Sum
+
+The choice between row mean and row sum for the composite does not affect correlations or standardised regression coefficients, but it does affect interpretation of raw coefficients. Row means are preferred in most marketing research contexts because:
+
+- They keep the composite on the original scale, so "a one-unit change in brand attachment" has the same meaning as "moving one point on the 7-point scale"
+- They handle missing data on individual items more gracefully — a respondent who skips one of five items still contributes a reasonable composite based on the four answered items
+
+# Five-Step Item Diagnostic Workflow
+
+The following workflow integrates all item-level diagnostic tools into a reproducible sequence that should be run for every multi-item battery before computing composites or performing any analysis.
+
+## Step 1 — Descriptive Statistics Per Item
+
+Before running any reliability analysis, examine basic descriptives for each item:
+
+```{r}
+#| label: item-diagnostics-step1
+
+library(psych)
+library(tidyverse)
+
+battery <- survey |>
+  select(starts_with("brand_attach"))
+
+# Means, SDs, skewness, kurtosis, range
+describe(battery) |>
+  select(n, mean, sd, skew, kurtosis, min, max) |>
+  round(2)
+```
+
+Items to flag at this stage:
+
+- **Ceiling or floor effects:** an item with a mean at or near the maximum (e.g., mean = 6.8 on a 7-point scale) has no room to discriminate between more and less attached respondents. It will contribute little to reliability.
+- **Near-zero variance:** an item where almost everyone gives the same response has a standard deviation close to zero and a corrected item-total correlation of essentially zero.
+- **Extreme skewness:** skewness values above ±2 indicate a heavily skewed response distribution. This may reflect a scale-use problem (e.g., acquiescence bias) or a substantive finding about the construct.
+
+## Step 2 — Visualise Response Distributions
+
+Distributional plots reveal problems that summary statistics can obscure:
+
+```{r}
+#| label: item-diagnostics-step2
+
+library(tidyverse)
+
+battery_long <- survey |>
+  select(starts_with("brand_attach")) |>
+  pivot_longer(
+    everything(),
+    names_to  = "item",
+    values_to = "response"
+  )
+
+battery_long |>
+  count(item, response) |>
+  group_by(item) |>
+  mutate(pct = n / sum(n)) |>
+  ggplot(aes(x = response, y = pct, fill = item)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ item, nrow = 1) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    title    = "Response distribution per item",
+    subtitle = "Maritime Roast brand attachment battery",
+    x        = "Response option",
+    y        = "Proportion of respondents"
+  ) +
+  theme_minimal()
+```
+
+Look for: extreme right-skew (acquiescence bias), bimodal distributions (item content that genuinely divides the population rather than measuring a continuum), and uniformly flat distributions (respondents guessing or confused by the item wording).
+
+## Step 3 — Cronbach's Alpha and Item-Level Diagnostics
+
+```{r}
+#| label: item-diagnostics-step3
+
+alpha_result <- alpha(battery)
+
+# Overall alpha
+cat("Raw alpha:         ", round(alpha_result$total$raw_alpha, 3), "\n")
+cat("Standardised alpha:", round(alpha_result$total$std.alpha, 3), "\n")
+
+# Item-level: corrected item-total correlations and alpha-if-deleted
+alpha_result$item.stats |>
+  select(r.drop, mean, sd) |>
+  round(3)
+
+alpha_result$alpha.drop |>
+  select(raw_alpha) |>
+  round(3)
+```
+
+The `r.drop` column is the corrected item-total correlation — the correlation of the item with the sum of all other items. This is the key diagnostic. Any item with r.drop below 0.30 warrants examination.
+
+## Step 4 — Drop/Revise Decision
+
+Apply the following decision framework to each item:
+
+| r.drop | Alpha-if-dropped vs. current alpha | Recommended action |
+|--------|-----------------------------------|-------------------|
+| < 0.20 | Substantially higher | Strong removal candidate |
+| 0.20–0.30 | Somewhat higher | Consider revising item wording |
+| > 0.30 | Equal or lower | Keep |
+| Negative | N/A | Almost certainly a mis-coded reverse item — check coding |
+
+Decisions should not be purely mechanical. An item with a low r.drop may be measuring a conceptually distinct but theoretically important aspect of the construct. If dropping it would narrow the construct coverage unacceptably, revise the wording rather than removing the item. When items are dropped, document the rationale in the analysis report.
+
+After any item removals, re-run `alpha()` on the reduced battery. Iteration is normal — removing one problematic item sometimes reveals that another is now the weakest link.
+
+## Step 5 — Visualise the Correlation Matrix
+
+The inter-item correlation matrix provides a comprehensive view of item relationships:
+
+```{r}
+#| label: item-diagnostics-step5
+
+library(corrplot)
+
+cor_matrix <- cor(battery, use = "pairwise.complete.obs")
+
+corrplot(
+  cor_matrix,
+  method      = "color",
+  type        = "upper",
+  addCoef.col = "black",
+  number.cex  = 0.8,
+  tl.col      = "black",
+  tl.srt      = 45,
+  col         = colorRampPalette(c("#7A003C", "white", "#FDBF57"))(200)
+)
+```
+
+A well-behaved 5-item battery for a reflective construct should show a consistently warm upper triangle — all correlations positive, most in the 0.30–0.70 range. Cold cells (correlations near zero or negative) identify the problematic items. Near-identical hot cells (correlations above 0.80) identify redundant items.
+
+# Response Bias: Detection and Correction
+
+## Common Response Biases in Multi-Item Batteries
+
+Multi-item rating scales are vulnerable to several response styles that contaminate measurement with systematic noise:
+
+**Acquiescence bias:** Some respondents tend to agree with statements regardless of content. If all items are positively worded, acquiescence inflates alpha (because respondents consistently rate all items high) while measuring nothing but agreement tendency. Reverse-coded items are the primary countermeasure — acquiescing respondents will show inconsistency on reverse items.
+
+**Extreme response style:** Some respondents use only the endpoints of a scale (1 or 7 on a 7-point scale), regardless of how strong their actual attitude is. This produces high standard deviations and bimodal distributions.
+
+**Central tendency bias:** Other respondents avoid extremes, clustering their responses near the midpoint. This compresses variance and reduces the scale's ability to differentiate respondents.
+
+**Straight-lining:** In long online surveys, disengaged respondents sometimes select the same response option for every item without reading. This produces within-respondent standard deviations near zero and renders the data for that individual uninformative.
+
+**Social desirability bias:** Respondents over-report socially desirable behaviours and attitudes. In marketing surveys, this is less problematic than in sensitive-topic surveys, but can affect items like "I always recycle my packaging" or questions about purchase frequency.
+
+## Detecting Straight-Liners in R
+
+The most operationally important response quality check for multi-item batteries is straight-liner detection. Compute the within-respondent standard deviation across items — genuine respondents who have real attitudes will vary at least somewhat across items, while straight-liners will have near-zero within-person SD:
+
+```{r}
+#| label: straight-liner-detection
+
+library(tidyverse)
+
+# Compute within-respondent SD across the five attachment items
+survey_clean <- survey |>
+  rowwise() |>
+  mutate(
+    within_sd = sd(c_across(brand_attach_1:brand_attach_5), na.rm = TRUE)
+  ) |>
+  ungroup()
+
+# Visualise the distribution of within-person SD
+survey_clean |>
+  ggplot(aes(x = within_sd)) +
+  geom_histogram(bins = 30, fill = "#7A003C", colour = "white") +
+  geom_vline(xintercept = 0.5, linetype = "dashed", colour = "red") +
+  labs(
+    title    = "Within-respondent SD across brand attachment items",
+    subtitle = "Respondents left of the red line are potential straight-liners",
+    x        = "SD across items (per respondent)",
+    y        = "Count"
+  ) +
+  theme_minimal()
+
+# Flag and quantify
+survey_clean <- survey_clean |>
+  mutate(straight_liner_flag = within_sd < 0.5)
+
+cat("Proportion flagged as straight-liners:",
+    round(mean(survey_clean$straight_liner_flag), 3), "\n")
+```
+
+A within-respondent SD below 0.5 on a 7-point scale is a conservative flag — it means the respondent used essentially one or two adjacent points across all items. Do not exclude flagged respondents on this criterion alone. Combine with response time data (anomalously fast completion), open-ended response quality (nonsensical text), and inconsistent responding on attention checks before making an exclusion decision. Document any exclusions with the criteria used.
+
+## Reverse-Scoring: The Critical Preliminary Check
+
+Before running any reliability analysis, ensure that reverse-scored items have been recoded. An item asking "I feel no connection to this brand" is reverse-coded relative to "I feel personally connected to this brand." Agreement with the reverse item indicates low attachment; it must be flipped so that high scores always indicate high levels of the construct.
+
+The recoding formula for a 7-point scale is: recoded value = 8 − original value. For a 5-point scale: recoded value = 6 − original value. For a 10-point scale: recoded value = 11 − original value.
+
+```{r}
+#| label: reverse-score-check
+
+library(tidyverse)
+
+# Assume brand_attach_3 is reverse-coded (negatively worded)
+survey <- survey |>
+  mutate(
+    brand_attach_3_r = 8 - brand_attach_3   # for 7-point scale
+  )
+
+# Verify: the recoded item should now correlate positively with the others
+cor(
+  survey[c("brand_attach_1", "brand_attach_2",
+           "brand_attach_3_r", "brand_attach_4", "brand_attach_5")],
+  use = "complete.obs"
+) |> round(2)
+```
+
+If `brand_attach_3_r` still shows a negative correlation with the other items after recoding, either the item was not actually reverse-coded (coding error in the original was incorrect) or the item is genuinely measuring a different construct and should be dropped. A negative corrected item-total correlation before checking for reverse-coding is the most common scale-related error in course projects.
+
+# Scales for Common Marketing Constructs
+
+## Brand Attachment (Park et al., 2010)
+
+Park, MacInnis, Priester, Eisingerich, and Iacobucci (2010, *Journal of Marketing*) developed and validated a brand attachment scale with two empirically derived subdimensions:
+
+- **Brand-self connection:** the degree to which the brand is linked to the consumer's identity and self-concept ("This brand is part of me and who I am," "I feel personally connected to this brand")
+- **Brand prominence:** the ease with which brand thoughts and feelings come to mind in memory and imagination
+
+The full 10-item scale has strong psychometric properties and has been validated across diverse product categories (Apple, Nike, Harley-Davidson). Maritime Roast's brand_attach items are modelled on this scale.
+
+## Customer Satisfaction (ACSI Items)
+
+The American Customer Satisfaction Index uses a three-item satisfaction battery that serves as the national benchmark across hundreds of companies and industries:
+
+1. Overall satisfaction (0–10 scale)
+2. Expectation confirmation ("To what extent did [brand] meet your expectations?")
+3. Comparison to ideal ("How close to your ideal is [brand]?")
+
+The ACSI composite has been tracked quarterly since 1994, making it uniquely useful when clients want to benchmark their satisfaction scores against industry norms. If a project client has this goal, adopting the ACSI item wording exactly is essential — modified items cannot be compared to ACSI benchmarks.
+
+## The NPS Controversy
+
+The Net Promoter Score (Reichheld, 2003) uses a single question — "How likely are you to recommend [brand] to a friend or colleague?" (0–10) — to classify respondents as Promoters (9–10), Passives (7–8), or Detractors (0–6). NPS is the difference between the Promoter and Detractor percentages.
+
+NPS is widely used in industry for its simplicity and executive communicability. However, it faces substantial academic criticism:
+
+**Psychometric weaknesses.** A single item is inherently less reliable than a multi-item battery. The Promoter/Detractor cut-offs are arbitrary — there is no statistical rationale for treating 6 as qualitatively different from 7.
+
+**Predictive validity contested.** Keiningham et al. (2007) conducted a longitudinal study across multiple industries and found that NPS does not predict firm revenue growth better than traditional satisfaction measures. Other satisfaction items (ACSI) perform comparably or better.
+
+**Practical survivorship.** NPS persists in industry not because it is psychometrically superior but because it is simple enough to be reported to a board of directors in one number. This is a real advantage in communication, even if it is not a psychometric one.
+
+For M731 projects: if a client uses NPS, understand what it measures (recommendation likelihood) and what it does not (overall satisfaction, loyalty, attachment). Supplement NPS with a multi-item satisfaction or loyalty measure if the research objective requires reliable measurement.
+
+## Customer Loyalty: Oliver's Four-Phase Model
+
+Oliver (1999) described loyalty as developing in four phases:
+
+1. **Cognitive loyalty:** Based on information — "this brand is best given what I know about quality and price." Vulnerable to competitive information.
+2. **Affective loyalty:** Based on accumulated satisfaction — "I like this brand." Harder to dislodge but still vulnerable to competitive offers.
+3. **Conative loyalty:** Based on commitment intention — "I intend to keep using this brand." Does not guarantee action.
+4. **Action loyalty:** Actual repurchase despite obstacles and competitive inducements.
+
+Measuring only intention ("How likely are you to continue your subscription?") misses respondents who intend to stay but defect when a better offer appears. Measuring all four phases — attitudinal, intentional, and behavioural — gives a richer and more actionable picture of retention risk.
+
+# Cultural Considerations in Scale Use
+
+## Scales Do Not Travel Automatically
+
+Scales developed on specific populations in specific cultural contexts do not automatically produce valid measurements in other populations. The issues are multiple:
+
+**Translation.** A scale item that is clear in English may have different connotations or no equivalent phrasing in French, Cantonese, or Arabic. "Strongly agree" may not translate to an expression with identical meaning in every language.
+
+**Response style differences.** East Asian respondents tend to use middle-of-scale responses more frequently (extreme response avoidance), while some Latin American respondents tend toward endpoint responses (acquiescence or enthusiasm). Comparing raw scale means across cultural groups without accounting for response style differences conflates cultural differences in construct levels with differences in scale use.
+
+**Construct equivalence.** "Satisfaction" may have different semantic content in cultures with different consumer service expectations. A 4/7 satisfaction rating may mean "acceptable" in a culture with high service standards and "excellent" in a culture with lower baseline expectations.
+
+## Managing Translation: The Back-Translation Protocol
+
+The standard method for producing cross-culturally equivalent instrument versions is back-translation:
+
+1. **Forward translation:** A bilingual translator (preferably native in the target language) translates from the original language into the target language.
+2. **Back translation:** A different bilingual translator (who has not seen the original) translates the target-language version back into the original language.
+3. **Reconciliation:** The original instrument and the back-translated version are compared. Where they differ, the item is revised and the cycle is repeated.
+
+This process ensures that the semantic content of items is preserved across languages, not just the literal wording. For M731 projects targeting Canada's bilingual and multicultural population, noting this limitation — and recommending it as a next step — demonstrates methodological awareness even when the project timeline precludes doing it.
+
+# References and Further Reading
+
+**Churchill, G.A. (1979).** A paradigm for developing better measures of marketing constructs. *Journal of Marketing Research*, 16(1), 64–73. The foundational paper on systematic scale development. Every marketing researcher should read it.
+
+**Rossiter, J.R. (2002).** The C-OAR-SE procedure for scale development in marketing. *International Journal of Research in Marketing*, 19(4), 305–335. The principal critique of the Churchill paradigm, and an important corrective on the reflective-formative distinction.
+
+**Fornell, C. & Larcker, D.F. (1981).** Evaluating structural equation models with unobservable variables and measurement error. *Journal of Marketing Research*, 18(1), 39–50. Introduces AVE and composite reliability; defines the Fornell-Larcker discriminant validity criterion.
+
+**Campbell, D.T. & Fiske, D.W. (1959).** Convergent and discriminant validation by the multitrait-multimethod matrix. *Psychological Bulletin*, 56(2), 81–105. The MTMM framework.
+
+**Keiningham, T.L., Cooil, B., Andreassen, T.W., & Aksoy, L. (2007).** A longitudinal examination of net promoter and firm revenue growth. *Journal of Marketing*, 71(3), 39–51. The definitive empirical rebuttal of Reichheld's NPS claims.
+
+**Park, C.W., MacInnis, D.J., Priester, J., Eisingerich, A.B., & Iacobucci, D. (2010).** Brand attachment and brand attitude strength: conceptual and empirical differentiation of two critical brand equity drivers. *Journal of Marketing*, 74(6), 1–17. Source of the brand attachment scale used in the Maritime Roast case.
+
+**Nunnally, J.C. (1978).** *Psychometric Theory* (2nd ed.). McGraw-Hill. Source of the widely cited α > 0.70 convention.
+
+**Cronbach, L.J. (1951).** Coefficient alpha and the internal structure of tests. *Psychometrika*, 16(3), 297–334. The original alpha paper.
+
+**McDonald, R.P. (1999).** *Test Theory: A Unified Treatment.* Erlbaum. Defines omega hierarchical and omega total.

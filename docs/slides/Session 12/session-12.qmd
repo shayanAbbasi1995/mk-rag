@@ -1,0 +1,437 @@
+---
+title: "Session 12 — Research Reports & Presentations"
+subtitle: "M731 Week 12 · November 25, 2026"
+author: "Shay Abbasi"
+date: "2026-11-25"
+---
+
+## Session 12 {background-color="#7A003C"}
+
+Research reports and presentations
+
+**Guest speaker today.**
+
+::: {.notes}
+Wk 12 mixes lecture, guest speaker, and report clinic. Confirm guest
+speaker arrival time. Have their slides / topic set. Introduce them
+warmly - they're volunteering.
+:::
+
+## Today's agenda
+
+1. Report structure — what a decision-oriented report looks like
+2. Chart design and data storytelling
+3. Quarto reporting features
+4. **Break (15 min)**
+5. **Guest speaker** (60 min including Q&A)
+6. Project report clinic — teams work + get feedback (~30 min)
+7. Wrap-up
+
+::: {.notes}
+Guest slot is 60 min - keep tight so the clinic has time. Report
+clinic is the practical value for teams. Wk 13 report is due in 7
+days.
+:::
+
+## Learning objectives
+
+By end of session 12 you will be able to:
+
+- Structure a decision-oriented research report
+- Design charts that support the story
+- Produce reproducible reports in Quarto (HTML, PDF, slides from one source)
+- Present findings to a non-technical audience
+
+::: {.notes}
+Objective 3 is the R skill. Objectives 1 and 4 are the softer skills
+that determine report quality.
+:::
+
+# Part 1 — Report structure {background-color="#7A003C"}
+
+## The decision-oriented report
+
+Structure for a marketing research report:
+
+1. **Title + author + date**
+2. **Executive summary** (1 page, plain-language, decision + evidence)
+3. **Background and objectives** (context, research questions)
+4. **Methodology** (design, sample, data, tests used)
+5. **Findings** (the evidence, ordered by importance)
+6. **Recommendations** (what to do)
+7. **Limitations** (what your findings don't cover)
+8. **Appendices** (detailed tables, code, questionnaire)
+
+::: {.notes}
+Executive summary is the most-read section. Some readers stop there.
+Write it last, revise it three times. Recommendation → decision, not
+just "here's what we found."
+:::
+
+## Executive summary — the format
+
+Three paragraphs, one page:
+
+1. **Situation:** what was the business question?
+2. **Findings:** what did we learn? (2-3 headline points, quantified)
+3. **Recommendation:** what should the client do?
+
+If a busy executive reads only this page, they should be able to act.
+
+::: {.notes}
+Give an example: "Maritime Roast asked whether to enter Ontario.
+Analysis of a 500-respondent survey finds 35% aided awareness in
+Ontario vs. 68% in Atlantic; WTP is $2 lower per pack. We recommend
+entering with a lower-priced entry SKU and a $150K first-year
+awareness campaign." That's the shape. One page.
+:::
+
+## Findings — evidence-first
+
+For each finding:
+
+- **Headline** (one sentence in bold)
+- **Evidence** (chart or table + numbers)
+- **Interpretation** (what it means in plain language)
+- **Confidence** (how sure are we?)
+
+Repeat for 3-8 key findings, ordered by importance.
+
+::: {.notes}
+Number of findings depends on scope - a term project has 3-6; a
+$100K commercial study might have 15. Order by importance, not
+questionnaire order. Lead with the most decision-relevant.
+:::
+
+## Limitations — the credibility move
+
+Every study has limitations. Naming them:
+
+- Increases credibility (you sound honest)
+- Prevents over-claiming
+- Sets expectations for follow-up research
+
+Never say "no limitations." Always name at least 2-3.
+
+::: {.notes}
+Weak reports hide limitations. Strong reports name them and explain
+why the finding still holds despite them. This is the maturity
+marker.
+:::
+
+## What makes a bad report
+
+- No executive summary; buries the lede
+- All methodology, no interpretation
+- Charts without labels or units
+- Recommendations that don't map to findings
+- Statistical jargon without translation
+- Length ≠ quality
+
+::: {.notes}
+Everyone has read reports like this. Point to your own painful
+experiences. Push students to write for the CEO, not the professor
+- the CEO doesn't want to see your work, they want to know what to
+do.
+:::
+
+# Part 2 — Chart design {background-color="#7A003C"}
+
+## Tufte's principles
+
+- **Data-ink ratio:** maximise the ratio of data ink to total ink
+- **Avoid chartjunk:** decorative elements without informational value
+- **Small multiples:** repeat the same chart with different data
+- **Sparklines:** small, in-line charts
+
+Simple, clear, informationally dense.
+
+::: {.notes}
+Tufte 2001 is the classic. Show a bad example (3D pie chart with
+gradients and drop shadows) vs. a good example (simple bar chart
+with sorted categories, labelled directly).
+:::
+
+## Chart choice by data type
+
+| Question              | Chart                          |
+|-----------------------|--------------------------------|
+| One value             | Big number or text             |
+| Distribution          | Histogram, density, boxplot    |
+| Category comparison   | Bar chart (sorted)             |
+| Trend over time       | Line chart                     |
+| Two continuous vars   | Scatter                        |
+| Composition           | Stacked bar (rarely pie)       |
+| Geographic            | Map                            |
+
+::: {.notes}
+Pie charts are almost always suboptimal. Bar charts are almost
+always better. Data-driven design choice, not "let's use a pie for
+variety." Show examples.
+:::
+
+## Communication tips for charts
+
+- **Label directly** — put labels near the data, not in a legend
+- **Sort by value** — not alphabetically
+- **Use colour intentionally** — highlight, don't decorate
+- **Include units** — always
+- **Cite source** — always
+- **Include the reference line** — where relevant
+
+::: {.notes}
+Show ggplot examples before/after each fix. Students often mimic
+Excel defaults; help them see better. `fct_reorder`, `direct.labels`,
+`labs(caption=...)` are their friends.
+:::
+
+# Part 3 — Quarto reporting {background-color="#7A003C"}
+
+## Beyond the basics
+
+You know how to render `.qmd` to HTML and PDF. New today:
+
+- Tables with `gt` and `kableExtra`
+- Cross-references (figure numbers, section links)
+- Parameterised reports (same template, different data)
+- Multiple outputs from one source (HTML + PDF + slides)
+
+::: {.notes}
+Focus on gt and cross-references - the two biggest polish wins.
+Parameterisation is advanced; mention as reference.
+:::
+
+## Tables with `gt`
+
+```{r}
+#| eval: false
+library(gt)
+
+survey |>
+  group_by(tier) |>
+  summarise(
+    n = n(),
+    mean_sat = mean(satisfaction, na.rm = TRUE),
+    sd_sat = sd(satisfaction, na.rm = TRUE)
+  ) |>
+  gt() |>
+  tab_header(title = "Satisfaction by subscription tier") |>
+  fmt_number(columns = c(mean_sat, sd_sat), decimals = 2)
+```
+
+::: {.notes}
+Live-demo. gt produces publication-quality output. kableExtra is
+older but still useful especially for LaTeX/PDF output.
+:::
+
+## Cross-references
+
+`````markdown
+See @fig-satisfaction and @tbl-descriptives.
+
+```{r}
+#| label: fig-satisfaction
+#| fig-cap: "Satisfaction distribution by tier"
+plot(...)
+```
+`````
+
+Chunk labels starting with `fig-` or `tbl-` enable cross-refs.
+
+::: {.notes}
+Quarto's cross-ref system is nicer than R Markdown's. Auto-numbers
+figures and tables; auto-links in HTML. Just prefix the label
+correctly.
+:::
+
+## Full worked example
+
+A short end-to-end example report — executive summary, one finding
+with a `gt` table and a cross-referenced figure, built from
+`maritime_survey.csv` — is in **`solutions-12.qmd`** in this session's
+folder. Use it as a starting template for your own project report.
+
+::: {.notes}
+Point teams here if they want a concrete skeleton to adapt rather than
+starting from a blank document.
+:::
+
+## Rendering to multiple formats
+
+Your project needs both a written report (PDF or HTML) and slides.
+
+Option 1: Two separate `.qmd` files, share a common data-loading `.R`.
+
+Option 2: One `.qmd` with format-specific chunks:
+
+```yaml
+format:
+  html: default
+  pdf: default
+  revealjs: default
+```
+
+::: {.notes}
+Option 1 is simpler for teams. Option 2 is elegant but requires
+careful chunk-writing that plays well with all formats. Recommend
+Option 1 for the project.
+:::
+
+## Parameterised reports
+
+For repeat reports (monthly tracker, per-region breakdown):
+
+```yaml
+params:
+  region: "Atlantic"
+```
+
+Then in R chunks: `params$region` is accessible.
+
+Render for different regions from a bash / R script.
+
+::: {.notes}
+Advanced. Not needed for the project but worth showing. In industry,
+parameterised reports save hours on repeated deliverables (monthly
+brand tracker, per-brand pack, per-region KPI report).
+:::
+
+## Break — 15 minutes {background-color="#FDBF57"}
+
+Guest speaker arriving.
+
+::: {.notes}
+Meet guest speaker at the door, brief on room layout, mic, and
+projector. Introduce them at the start of the guest slot.
+:::
+
+# Part 4 — Guest speaker (60 min) {background-color="#7A003C"}
+
+## Guest speaker
+
+Industry MR practitioner (or DeGroote faculty) on communicating research to decision-makers.
+
+Q&A after presentation.
+
+::: {.notes}
+Introduce guest by name, title, and organisation. Give 2 sentences
+of context on why they were invited. Sit at the back during their
+talk. Manage the Q&A - ensure students get to ask, and follow up if
+questions are thin.
+:::
+
+## Guest topics (typical)
+
+Depending on the speaker:
+
+- Real project walkthrough (a study they ran, what they learned)
+- Career path advice
+- "Things I wish I'd known coming out of school"
+- The state of the MR industry / trends
+
+::: {.notes}
+Prep the guest with these possible framings. Encourage them to
+include actual project artefacts (redacted where needed) - students
+learn from concrete examples.
+:::
+
+## Q&A prompts (if the room is quiet)
+
+- "What's the biggest mistake early-career MR analysts make?"
+- "How do you handle a client who wants a different conclusion?"
+- "What R / Python / SQL skills are most in demand?"
+- "How is AI changing the industry?"
+- "What's a project you're proud of?"
+
+::: {.notes}
+Have these on standby. Students may not have questions immediately -
+prime the pump if 30 seconds pass silently.
+:::
+
+# Part 5 — Report clinic (30 min) {background-color="#7A003C"}
+
+## Bring your drafts
+
+Teams work on their drafts. Instructor + TA circulate.
+
+Priorities:
+
+- Executive summary present + one page?
+- Findings ordered by importance?
+- Recommendations map to findings?
+- Charts clear + labelled?
+- Limitations named?
+
+::: {.notes}
+Lightning reviews - 5-10 min per team. Ask each team: "what's the
+top-line recommendation?" If they can't say it in one sentence, they
+haven't finished thinking. Push for clarity.
+:::
+
+## Common report weaknesses
+
+- **No executive summary** or a bloated one
+- **Methodology dumping** — 3 pages of sample-size formulas
+- **Findings without interpretation** — "The mean is X" instead of "This means X"
+- **Recommendations that don't follow** from findings
+- **Limitations section too short** (or absent)
+
+::: {.notes}
+Catch these live during the clinic. Every team has at least two of
+these. Prioritise the two biggest for each team.
+:::
+
+# Part 6 — For your project {background-color="#7A003C"}
+
+## Week 13 deliverables
+
+- **Written report** (20%) due start of class Dec. 2
+- **Presentation** (10%) delivered Dec. 2
+- All group members present
+- 15-20 min per team + Q&A
+
+Both submitted / delivered on the same day.
+
+::: {.notes}
+Do NOT accept late reports on presentation day - the timing gets
+messy. Encourage teams to submit report the evening before.
+:::
+
+## Presentation format
+
+- 15-20 min total per team (roughly 15 slides)
+- Slide 1: title, team members
+- Slides 2-3: problem + objectives
+- Slides 4-5: methodology
+- Slides 6-12: findings (one per finding)
+- Slides 13-14: recommendations
+- Slide 15: limitations, thanks, Q&A
+
+Peer + instructor Q&A: 5-7 min per team.
+
+::: {.notes}
+Give the format explicitly. Encourage teams to rehearse timing -
+running long or short both cost points.
+:::
+
+## Wrap-up + Week 13 preview
+
+**Next Wednesday:** presentation day.
+
+- Arrive 10 min early
+- Load your slides on the classroom machine (or bring a laptop with HDMI)
+- Report submitted by start of class
+
+::: {.notes}
+Give presentation order in advance (email by Monday). Random or
+sign-up? Announce your policy.
+:::
+
+## Thank you — questions?
+
+`abbass44@mcmaster.ca`
+
+::: {.notes}
+Stay for report clinic questions. Thank guest speaker again. Confirm
+Wk 13 logistics.
+:::

@@ -1,0 +1,105 @@
+---
+title: "Solutions — Session 12: A Short Worked Report"
+subtitle: "M731 · Full worked walkthrough (companion to session-12.qmd)"
+author: "Shay Abbasi"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    embed-resources: true
+    theme: cosmo
+execute:
+  echo: true
+  eval: true
+  warning: false
+  message: false
+---
+
+## Purpose
+
+Session 12 is about reporting mechanics (report structure, chart
+design, Quarto features), not a new dataset or technique. This
+solutions file is a **short, complete example report** built on
+`maritime_survey.csv` — a template you can adapt directly for your own
+project's written report. It demonstrates the `gt` table pattern and
+Quarto cross-references shown in the slide deck.
+
+## Setup
+
+```{r}
+#| label: setup
+library(tidyverse)
+library(gt)
+
+survey <- read_csv("data/maritime_survey.csv")
+```
+
+## Executive summary (worked example)
+
+> Maritime Roast is considering entry into the Ontario market. Analysis
+> of the Wk 6-11 survey work finds that Discovery-tier subscribers are
+> the most satisfied segment, and Atlantic subscribers report higher
+> willingness-to-pay than Ontario prospects. **Recommendation**: enter
+> Ontario with an entry-tier (Standard-equivalent) price point and a
+> clear upgrade path toward Discovery, rather than importing Atlantic
+> pricing directly.
+
+## Finding 1 — Satisfaction by tier (table)
+
+```{r}
+#| label: tbl-satisfaction
+#| tbl-cap: "Satisfaction by subscription tier"
+survey |>
+  group_by(tier) |>
+  summarise(
+    n = n(),
+    mean_sat = mean(satisfaction, na.rm = TRUE),
+    sd_sat = sd(satisfaction, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  gt() |>
+  tab_header(title = "Satisfaction by subscription tier") |>
+  fmt_number(columns = c(mean_sat, sd_sat), decimals = 2) |>
+  cols_label(tier = "Tier", n = "N", mean_sat = "Mean satisfaction", sd_sat = "SD")
+```
+
+See @tbl-satisfaction. Discovery subscribers report the highest mean
+satisfaction, consistent with the Week 7 ANOVA finding.
+
+## Finding 2 — WTP by region (cross-referenced figure)
+
+```{r}
+#| label: fig-wtp-region
+#| fig-cap: "Willingness-to-pay by region"
+survey |>
+  ggplot(aes(x = region, y = wtp, fill = region)) +
+  geom_boxplot(show.legend = FALSE) +
+  scale_fill_manual(values = c("#7A003C", "#FDBF57")) +
+  labs(title = "WTP by region", x = NULL, y = "Stated WTP ($)") +
+  theme_minimal()
+```
+
+@fig-wtp-region shows Ontario prospects reporting somewhat lower WTP
+than the existing Atlantic base — see the Week 6 solutions
+(`solutions-06.qmd`) for the formal hypothesis test and effect size
+behind this figure.
+
+## Limitations (always include at least 2-3)
+
+- Willingness-to-pay is **stated**, not revealed — actual purchase
+  behaviour after an Ontario launch may differ from survey responses.
+- The survey sample is instructor-simulated for this course; a real
+  launch decision would need fielded primary data with a documented
+  sampling frame (see Week 3).
+- This report covers only satisfaction and WTP; it does not address
+  awareness, competitive positioning, or logistics/shipping costs into
+  Ontario.
+
+## Take-away for students
+
+This is the minimum shape of a decision-oriented finding: **headline →
+evidence (table or chart) → interpretation → link back to the
+underlying analysis.** Your project report should have 3-8 findings in
+this shape, followed by recommendations that clearly follow from them,
+and a limitations section that names real gaps rather than boilerplate
+disclaimers.
