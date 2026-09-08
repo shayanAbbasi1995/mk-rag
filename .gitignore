@@ -21,6 +21,10 @@ build/
 
 # Claude Code local settings
 .claude/settings.local.json
+.claude/worktrees/
+
+# Course documents (keep out of git — store in docs/)
+*.pdf
 
 # OS
 .DS_Store
