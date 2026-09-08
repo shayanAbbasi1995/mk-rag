@@ -1,92 +1,114 @@
-# M731 Marketing Research — Course RAG
+# Course RAG Assistant
 
-A low-cost RAG assistant for the M731 Marketing Research course. Students ask questions; the app retrieves relevant content from 92 course documents (lecture slides, textbooks, course outline) and answers via DeepSeek-V3 through OpenRouter.
+A low-cost, open-source template for building a **Retrieval-Augmented Generation (RAG) chatbot for any university course**. Students ask questions in plain English; the app retrieves the most relevant passages from your course materials and answers via DeepSeek-V3 through OpenRouter.
 
-**Estimated cost: under $3 for a full semester with 50 students.**
+**Estimated cost: under $3 for a full semester with 50 students.**  
+Drop in your own slides, textbooks, and readings — no ML infrastructure required.
 
-## Stack
+---
+
+## How it works
+
+```
+Student question
+  ↓
+Hybrid search (dense semantic + sparse BM25) over your course docs in Qdrant
+  ↓
+Top chunks → DeepSeek-V3 via OpenRouter
+  ↓
+Grounded answer with numbered source citations
+```
+
+Key features:
+- **Hybrid retrieval** — combines OpenAI dense embeddings with BM25 sparse vectors via Reciprocal Rank Fusion (RRF), so both semantic meaning and exact terminology are matched
+- **Contextual chunk headers** — each chunk is prefixed with its section breadcrumb (e.g. `[Chapter 4 > Survey Design]`) so it's self-contained when retrieved
+- **Session/lecture pinning** — queries mentioning "session N / week N / lecture N" always surface content from that specific session
+- **Conversation history** — last 10 turns included so follow-up questions ("give me an example") resolve correctly
+- **Source citations** — every answer links to the source file and page number
+
+---
+
+## Stack & cost
 
 | Component | Tool | Cost |
 |-----------|------|------|
 | LLM | DeepSeek-V3 via OpenRouter (`deepseek/deepseek-chat`) | ~$0.26/1M input tokens |
-| Embeddings | `text-embedding-3-small` (OpenAI) | $0.02/1M tokens (~$0.04 to embed entire corpus) |
-| Vector store | Qdrant Cloud free tier | $0 (1 GB perpetual free) |
+| Embeddings | OpenAI `text-embedding-3-small` | $0.02/1M tokens (~$0.04 per full corpus ingest) |
+| Vector store | Qdrant Cloud free tier | $0 (1 GB perpetual free, ~500k vectors) |
 | UI | Streamlit | $0 |
 
-## Retrieval pipeline
-
-```
-Student query
-  ↓
-[Session-aware pinning]   ← if query mentions "session N / week N / lecture N",
-  ↓                          top-3 chunks from that session are pinned first
-[Hybrid search — RRF]
-  ├─ Dense:  OpenAI text-embedding-3-small  →  Qdrant ANN (top 12)
-  └─ Sparse: BM25 (FNV-1a hashed TF)       →  Qdrant sparse index (top 12)
-  ↓                          RRF fusion
-[De-dup + diversity cap]  ← collapse (source, chunk_index) twins; max 2 chunks per source file
-  ↓
-[Top 6 chunks → LLM context]
-  ↓
-DeepSeek-V3 via OpenRouter  (last 10 turns of conversation history included)
-  ↓
-Answer + numbered source citations
-```
-
-Each chunk is stored with a **contextual header** breadcrumb (e.g. `[Part 2 — Reliability > Cronbach's alpha]`) prepended before embedding, so chunks are self-contained even when retrieved out of context.
+---
 
 ## Setup
 
-**1. Accounts required (one-time)**
+### 1. Accounts (one-time)
 
-| Service | Free tier | What you need |
-|---------|-----------|---------------|
-| [OpenRouter](https://openrouter.ai) | Pay-as-you-go | API key + $5 deposit |
-| [OpenAI](https://platform.openai.com) | Pay-as-you-go | API key + $5 credit (embeddings only) |
-| [Qdrant Cloud](https://cloud.qdrant.io) | 1 GB free forever | Cluster URL + API key |
+| Service | Sign up | What you need |
+|---------|---------|---------------|
+| [OpenRouter](https://openrouter.ai) | Free | API key + $5 deposit |
+| [OpenAI](https://platform.openai.com) | Free | API key + $5 credit (embeddings only) |
+| [Qdrant Cloud](https://cloud.qdrant.io) | Free | Cluster URL + API key |
 
-**2. Clone and create a virtual environment**
+### 2. Clone and install
 
 ```powershell
-git clone <repo-url>
-cd mk-rag
+git clone https://github.com/shayanAbbasi1995/mk-rag.git my-course-rag
+cd my-course-rag
 python -m venv .venv
 .venv\Scripts\activate        # Windows
 # source .venv/bin/activate   # macOS/Linux
 pip install -r requirements.txt
 ```
 
-**3. Configure secrets**
+### 3. Configure your course
 
-Create a `.env` file in the repo root (gitignored):
+Create a `.env` file in the repo root (already gitignored):
 
 ```env
+# Course branding — shown as the app title
+COURSE_NAME=My Course Name: Ask a question
+
+# OpenRouter (LLM generation)
 OPENROUTER_API_KEY=sk-or-...
+
+# OpenAI (embeddings only)
 OPEN_AI_EMBEDDINGS_API_KEY=sk-...
+
+# Qdrant Cloud
 QDRANT_URL=https://<cluster-id>.cloud.qdrant.io:6333
 QDRANT_API_KEY=...
 QDRANT_CLUSTER_NAME=...
 ```
 
-For Streamlit Cloud deployment, copy the same keys into `.streamlit/secrets.toml` (see `.streamlit/secrets.toml.example`).
+That's the only configuration needed. The app title, system prompt, and source citations all adapt to `COURSE_NAME` automatically.
 
-**4. Add course materials**
+### 4. Add your course materials
 
-Place PDFs, `.qmd`, `.md`, `.html`, `.docx`, or `.txt` files anywhere under `docs/`. Course PDFs are gitignored — store them in OneDrive and copy locally before ingesting.
+Copy your slides, textbooks, readings, and course outline into the `docs/` folder. Supported formats: **PDF, PPTX, DOCX, HTML, Markdown, Quarto (.qmd), plain text**.
 
-**5. Ingest documents**
+```
+docs/
+├── slides/        # Lecture slides
+├── textbooks/     # Textbook PDFs
+├── outline/       # Syllabus / course outline
+└── readings/      # Supplementary readings
+```
+
+**Nothing in `docs/` is tracked by git** — your materials stay private regardless of whether the repo is public or private.
+
+### 5. Ingest your materials
 
 ```powershell
 .venv\Scripts\python.exe -m scripts.ingest
 ```
 
-Only new or changed files are re-processed (MD5-tracked via `index_tracker.json`). To force a full re-ingest:
+This partitions, chunks, embeds, and uploads everything to your Qdrant collection. Only new or changed files are re-processed on subsequent runs. To force a full re-ingest:
 
 ```powershell
 .venv\Scripts\python.exe -m scripts.ingest --reset
 ```
 
-**6. Launch the app**
+### 6. Launch the app
 
 ```powershell
 .venv\Scripts\streamlit.exe run app.py
@@ -94,51 +116,60 @@ Only new or changed files are re-processed (MD5-tracked via `index_tracker.json`
 
 Opens at `http://localhost:8501`.
 
+---
+
+## Deploying to Streamlit Cloud
+
+1. Push your fork to GitHub (docs are gitignored — no course materials are exposed)
+2. Connect the repo at [share.streamlit.io](https://share.streamlit.io)
+3. Add your secrets under **App settings → Secrets** (same key names as `.env`)
+
+The deployed app reads from Qdrant at runtime — `docs/` is never needed on the server.
+
+---
+
 ## Project structure
 
 ```
-mk-rag/
-├── app.py                        # Streamlit chat UI (hybrid retrieval + DeepSeek-V3)
+course-rag/
+├── app.py                        # Streamlit chat UI
 ├── requirements.txt              # Pinned dependencies
-├── .env                          # Secrets — gitignored, never commit
+├── .env                          # Your secrets — gitignored, never commit
 ├── .streamlit/
-│   ├── config.toml               # Disables Streamlit usage stats prompt
-│   └── secrets.toml.example      # Key template for Streamlit Cloud deploy
-├── docs/
-│   ├── Outline/                  # Course outline (.docx)
-│   ├── slides/                   # Quarto lecture slides (Sessions 1–13, .qmd + .html)
-│   │   └── Session N/
-│   │       ├── session-NN.qmd
-│   │       ├── session-NN-extended.qmd
-│   │       ├── solutions-NN.qmd
-│   │       └── data/             # In-class datasets (.csv)
-│   ├── TextBooks/                # Textbook PDFs — gitignored
-│   └── overview.qmd              # Course overview
+│   ├── config.toml               # Disables Streamlit usage-stats prompt
+│   └── secrets.toml.example      # Key template for Streamlit Cloud
+├── docs/                         # Your course materials — gitignored
+│   └── README.md                 # Instructions for what to put here
 ├── scripts/
 │   ├── ingest.py                 # Ingestion CLI: partition → chunk → embed → upsert
-│   ├── partitioner.py            # Multi-format partitioner (PDF, PPTX, QMD, HTML, DOCX, MD)
-│   ├── chunker.py                # chunk_by_title + boilerplate cleaning
-│   ├── sparse_encoder.py         # BM25-style sparse encoder (FNV-1a hashing, no extra deps)
-│   ├── inspect_chunks.py         # Diagnostic: chunk size distribution
-│   ├── eval_retrieval.py         # Retrieval quality probe (pre-fix baseline)
-│   ├── eval_after_improvements.py # Retrieval quality probe (post-fix)
-│   ├── audit_duplicates.py       # Qdrant duplicate detector
-│   ├── dedupe_qdrant.py          # One-time dedup of the live collection
-│   ├── debug_session1.py         # Session-retrieval diagnostic
-│   ├── verify_session1_fix.py    # Session-pinning verification
-│   └── smoke_e2e.py              # End-to-end smoke test
+│   ├── partitioner.py            # Multi-format file partitioner
+│   ├── chunker.py                # Semantic chunking + boilerplate cleaning
+│   ├── sparse_encoder.py         # BM25-style sparse encoder (no extra deps)
+│   └── inspect_chunks.py         # Diagnostic: chunk size distribution
 └── data/
-    └── elements_cache/           # JSON element cache per source file — gitignored
+    └── elements_cache/           # Parsed element cache — gitignored
 ```
 
-## Re-ingesting after updates
+---
 
-`index_tracker.json` (gitignored) tracks processed file hashes. Adding new files to `docs/` and re-running `scripts/ingest.py` only processes what changed. The ingester is safe to re-run — it purges stale Qdrant points for any file it re-processes before upserting fresh ones.
+## Tuning for your course
 
-## Qdrant collection schema
+All tuning parameters are constants at the top of `app.py`:
 
-- **Collection:** `course-docs`
-- **Dense vector:** `dense` — 1536-dim, cosine distance (`text-embedding-3-small`)
-- **Sparse vector:** `sparse` — BM25-style TF, Qdrant sparse index
-- **Payload fields:** `text`, `context_header`, `source_file`, `source_path`, `page_number`, `element_category`, `chunk_index`, `element_id`, `parent_id`, `file_hash`
-- **Payload indexes:** `source_file`, `source_path`, `element_category`, `file_hash` (keyword); `page_number` (integer)
+| Constant | Default | What it does |
+|----------|---------|--------------|
+| `RETRIEVER_K` | 6 | Chunks passed to the LLM per query |
+| `RETRIEVER_FETCH_K` | 12 | Raw hits fetched before de-dup and diversity cap |
+| `MAX_HITS_PER_SOURCE` | 2 | Max chunks from any single source file |
+| `CHAT_HISTORY_TURNS` | 10 | Prior turns included for follow-up resolution |
+| `SESSION_PIN_TOP_N` | 3 | Session-specific chunks pinned when query names a session |
+| `QDRANT_COLLECTION` | `"course-docs"` | Qdrant collection name |
+| `OPENROUTER_CHAT_MODEL_ID` | `"deepseek/deepseek-chat"` | Swap to any OpenRouter model |
+
+The session-pinning regex (`SESSION_QUERY_RE`) defaults to sessions 1–13. Update the range in `_detect_session_number()` in `app.py` if your course has a different number of sessions/weeks.
+
+---
+
+## Built with
+
+This template was built as a practical example of applying the **Preprocessing Unstructured Data for LLM Applications** workflow to a real academic course. The ingestion pipeline follows the partition → clean → chunk → embed → store pattern from that course, using the `unstructured` library for multi-format document handling.

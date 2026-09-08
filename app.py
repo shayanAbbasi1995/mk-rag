@@ -1,4 +1,6 @@
-"""Streamlit chat UI for the Marketing Research course RAG assistant.
+"""Streamlit chat UI for a course RAG assistant.
+
+Set COURSE_NAME in .env (or Streamlit secrets) to brand the UI for your course.
 
 Generation goes through OpenRouter (DeepSeek-V3) because it's ~10x cheaper
 than calling OpenAI's chat models directly. Embeddings still hit OpenAI
@@ -98,9 +100,13 @@ SESSION_QUERY_RE = re.compile(
 # small so semantic hits still get most of the RETRIEVER_K budget.
 SESSION_PIN_TOP_N: int = 3
 
+# Course branding — set COURSE_NAME in .env or Streamlit secrets to customise
+# the UI title without touching code.
+COURSE_NAME: str = os.getenv("COURSE_NAME", "Course Assistant: Ask a question")
 
-st.set_page_config(page_title="M731 - Marketing Research: Ask a question", layout="centered")
-st.title("M731 - Marketing Research: Ask a question")
+
+st.set_page_config(page_title=COURSE_NAME, layout="centered")
+st.title(COURSE_NAME)
 
 
 _SECRETS_PATHS = [
@@ -558,14 +564,14 @@ if prompt := st.chat_input("Ask a question about the course material..."):
                         citations.append(c)
 
                 system_prompt = (
-                    "You are a helpful teaching assistant for a graduate-level "
-                    "Marketing Research course. Answer the student's question "
+                    f"You are a helpful teaching assistant for {COURSE_NAME}. "
+                    "Answer the student's question "
                     "strictly using the numbered context passages below. If "
                     "the answer cannot be found in the context, say you do not "
                     "know based on the provided material. Do not fabricate "
                     "answers. When possible, ground your answer in the specific "
-                    "research method, framework, or concept the course material "
-                    "references, and reference passage numbers like [1], [2] "
+                    "concept, framework, or method the course material "
+                    "references, and cite passage numbers like [1], [2] "
                     "when appropriate.\n\n"
                     "The conversation history above is provided so that "
                     "follow-up questions ('give me an example', 'why?') can "
