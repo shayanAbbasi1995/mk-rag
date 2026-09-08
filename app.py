@@ -101,6 +101,27 @@ SESSION_QUERY_RE = re.compile(
 # small so semantic hits still get most of the RETRIEVER_K budget.
 SESSION_PIN_TOP_N: int = 3
 
+# Term-pinning: jargon terms whose dense embeddings get buried when the
+# query also contains a competing high-frequency term. Each entry is
+# (detection_pattern, probe_query, pin_top_n). When the query matches the
+# pattern, we run a dedicated dense search with the probe and prepend the
+# top chunks unconditionally — exactly like session pinning. The probe query
+# is semantically rich so it surfaces specific content even when the student
+# phrases the question in a comparison form ("A vs B") that causes A to lose
+# the cosine race to B.
+TERM_PINNING: list[tuple[re.Pattern[str], str, int]] = [
+    (
+        re.compile(r"\b(?:cluster\s+analysis|clustering)\b", re.IGNORECASE),
+        "cluster analysis market segmentation grouping respondents cases K-means hierarchical",
+        2,
+    ),
+    (
+        re.compile(r"\bpart.?worth\b", re.IGNORECASE),
+        "part-worth utility conjoint analysis attribute level value contribution preference",
+        3,
+    ),
+]
+
 # --- Multi-query expansion + reranker knobs --------------------------------
 # When multi-query is enabled we generate N alternative phrasings of the
 # rewritten query and fuse per-branch Prefetch results via RRF. This trades
@@ -121,12 +142,14 @@ RERANKER_MODEL_ID: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 # mention "midterm" and answer with textbook content.
 ADMIN_QUERY_RE = re.compile(
     # Admin-query triggers. We anchor 'when' with a following auxiliary
-    # ('when is/are/does...') so questions like "when would stratified
-    # sampling be preferred" don't get mis-routed to the syllabus filter.
-    # The unconditional keywords (midterm, exam, office hours, etc.) are
-    # strong-enough signals on their own.
+    # ('when is/are/does/will...') so questions like "when would stratified
+    # sampling be preferred" or "when do I use Cronbach's alpha" don't get
+    # mis-routed to the syllabus filter. 'do' was removed because "when do
+    # I use X?" is a methodology question, not a scheduling one.
+    # Unconditional keywords (midterm, office hours, etc.) are strong
+    # enough signals on their own.
     r"\b("
-    r"when\s+(?:is|are|does|do|will|can\s+i|should\s+i)"
+    r"when\s+(?:is|are|does|will|can\s+i|should\s+i)"
     r"|what\s+(?:day|date|time)"
     r"|office\s+hours"
     r"|midterm|final\s+exam"
@@ -357,11 +380,59 @@ def _fetch_session_chunks(
             page_content=payload.get("text", ""),
             metadata={
                 "source_file": payload.get("source_file", "Unknown"),
+                "context_header": payload.get("context_header", ""),
                 "page_number": payload.get("page_number"),
                 "element_category": payload.get("element_category", ""),
                 "score": float(score),
             },
         ))
+    return docs
+
+
+def _fetch_term_pinned_chunks(probe_query: str, top_n: int) -> list[Document]:
+    """Run a dedicated dense search for `probe_query` and return the top
+    `top_n` chunks (max 1 per source file) as Documents to be pinned.
+
+    Used by TERM_PINNING when a jargon term would otherwise lose the cosine
+    race to a competing high-frequency term in the student's question (e.g.
+    "cluster analysis" vs "factor analysis" in a comparison query). A direct
+    probe guarantees the concept is represented regardless of how many RRF
+    branches favour the competing term.
+    """
+    probe_vec = get_embeddings().embed_query(probe_query)
+    client = get_qdrant_client()
+    try:
+        hits = client.query_points(
+            collection_name=QDRANT_COLLECTION,
+            query=probe_vec,
+            using=DENSE_VECTOR_NAME,
+            limit=top_n * 6,
+            with_payload=True,
+        ).points
+    except Exception:
+        return []
+
+    seen_sources: dict[str, int] = {}
+    docs: list[Document] = []
+    for pt in hits:
+        pl = pt.payload or {}
+        src = pl.get("source_file", "Unknown")
+        if seen_sources.get(src, 0) >= 1:
+            continue
+        seen_sources[src] = 1
+        docs.append(Document(
+            page_content=pl.get("text", ""),
+            metadata={
+                "source_file": src,
+                "context_header": pl.get("context_header", ""),
+                "page_number": pl.get("page_number"),
+                "element_category": pl.get("element_category", ""),
+                "doc_type": pl.get("doc_type"),
+                "score": float(pt.score),
+            },
+        ))
+        if len(docs) >= top_n:
+            break
     return docs
 
 
@@ -582,6 +653,14 @@ def search_docs(
             session_n, query_vector, top_n=SESSION_PIN_TOP_N
         )
 
+    # Jargon term pinning. When the query explicitly names a concept that
+    # loses the dense cosine race to a competing term (e.g. "cluster
+    # analysis" vs "factor analysis" in a contrast query), run a dedicated
+    # probe search and prepend those chunks alongside any session-pinned ones.
+    for term_pattern, probe, pin_n in TERM_PINNING:
+        if term_pattern.search(query):
+            pinned_docs.extend(_fetch_term_pinned_chunks(probe, pin_n))
+
     # ---- Per-variant Prefetch and manual RRF ---------------------------
     # We run one dense + one sparse Prefetch per variant. Each individual
     # Prefetch is scored server-side, then we pull *unfused* per-branch
@@ -694,6 +773,7 @@ def search_docs(
             page_content=payload.get("text", ""),
             metadata={
                 "source_file": source,
+                "context_header": payload.get("context_header", ""),
                 "page_number": payload.get("page_number"),
                 "element_category": payload.get("element_category", ""),
                 "doc_type": payload.get("doc_type"),
@@ -757,7 +837,19 @@ def rerank_docs(query: str, docs: list[Document]) -> list[Document]:
         return docs
     try:
         reranker = get_reranker()
-        pairs = [(query, d.page_content) for d in docs]
+        # Prepend context_header so the cross-encoder sees the LLM-generated
+        # topic summary alongside the raw chunk text. Without this, chunks
+        # whose text is mostly R output (numbers/code) score poorly even when
+        # the context_header correctly names the relevant concept.
+        pairs = [
+            (
+                query,
+                (
+                    (d.metadata.get("context_header") or "") + " " + d.page_content
+                ).strip(),
+            )
+            for d in docs
+        ]
         scores = reranker.predict(pairs)
         scored = sorted(zip(scores, docs), key=lambda t: float(t[0]), reverse=True)
         top = [d for _s, d in scored[:RETRIEVER_K]]
@@ -858,11 +950,19 @@ def _build_context_block(docs: list[Document]) -> str:
     """Format retrieved chunks as a numbered context block. The [n] tags
     make it easy for the LLM to cite specific passages inline; the
     parenthetical source header gives it the filename/page it should
-    quote when a student asks 'where did that come from?'."""
+    quote when a student asks 'where did that come from?'.
+
+    The LLM-generated context_header (one-sentence topic summary) is
+    prepended to the raw chunk text so the model can orient itself even
+    when the chunk text is code or tabular output that wouldn't be
+    self-explanatory on its own."""
     lines: list[str] = []
     for i, d in enumerate(docs, start=1):
         header = _format_citation(d)
-        lines.append(f"[{i}] Source: {header}\n{d.page_content.strip()}")
+        ctx_hdr = (d.metadata.get("context_header") or "").strip()
+        body = d.page_content.strip()
+        text = f"{ctx_hdr}\n{body}" if ctx_hdr else body
+        lines.append(f"[{i}] Source: {header}\n{text}")
     return "\n\n".join(lines)
 
 

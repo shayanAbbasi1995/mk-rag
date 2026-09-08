@@ -80,7 +80,7 @@ MULTI_QUERY_VARIANTS = 3
 
 ADMIN_QUERY_RE = re.compile(
     r"\b("
-    r"when\s+(?:is|are|does|do|will|can\s+i|should\s+i)"
+    r"when\s+(?:is|are|does|will|can\s+i|should\s+i)"
     r"|what\s+(?:day|date|time)"
     r"|office\s+hours"
     r"|midterm|final\s+exam"
@@ -90,6 +90,21 @@ ADMIN_QUERY_RE = re.compile(
     r")\b",
     re.IGNORECASE,
 )
+
+# Term-pinning: same logic as app.py — inject a dedicated probe for jargon
+# terms that lose the cosine race to a competing high-frequency term.
+TERM_PINNING: list[tuple[re.Pattern[str], str, int]] = [
+    (
+        re.compile(r"\b(?:cluster\s+analysis|clustering)\b", re.IGNORECASE),
+        "cluster analysis market segmentation grouping respondents cases K-means hierarchical",
+        2,
+    ),
+    (
+        re.compile(r"\bpart.?worth\b", re.IGNORECASE),
+        "part-worth utility conjoint analysis attribute level value contribution preference",
+        3,
+    ),
+]
 
 # Refusal detection for off-syllabus questions. The system prompt in app.py
 # instructs the model to prefix refusals with this exact phrase.
@@ -207,6 +222,52 @@ def embed_batch(openai_client: OpenAI, texts: list[str]) -> list[list[float]]:
     return [d.embedding for d in resp.data]
 
 
+def fetch_term_pinned_docs(
+    probe_query: str,
+    top_n: int,
+    openai_client: OpenAI,
+    qdrant: QdrantClient,
+) -> list[dict[str, Any]]:
+    """Dense search for `probe_query`; return top `top_n` (max 1 per source).
+
+    Mirrors `_fetch_term_pinned_chunks` in app.py so the eval pipeline
+    produces the same term-pinning behaviour as the Streamlit app.
+    """
+    probe_vec = embed_batch(openai_client, [probe_query])[0]
+    try:
+        hits = qdrant.query_points(
+            collection_name=QDRANT_COLLECTION,
+            query=probe_vec,
+            using=DENSE_VECTOR_NAME,
+            limit=top_n * 6,
+            with_payload=True,
+        ).points
+    except Exception:
+        return []
+    seen_sources: dict[str, int] = {}
+    docs: list[dict[str, Any]] = []
+    for pt in hits:
+        pl = pt.payload or {}
+        src = pl.get("source_file", "Unknown")
+        if seen_sources.get(src, 0) >= 1:
+            continue
+        seen_sources[src] = 1
+        docs.append({
+            "text": pl.get("text", ""),
+            "context_header": pl.get("context_header", ""),
+            "source_file": src,
+            "source_path": pl.get("source_path", ""),
+            "page_number": pl.get("page_number"),
+            "doc_type": pl.get("doc_type"),
+            "chunk_index": pl.get("chunk_index"),
+            "rrf_score": float(pt.score),
+            "pinned": True,
+        })
+        if len(docs) >= top_n:
+            break
+    return docs
+
+
 def search_docs(
     query: str,
     openai_client: OpenAI,
@@ -259,6 +320,20 @@ def search_docs(
     kept: list[dict[str, Any]] = []
     per_source: dict[str, int] = {}
     seen_chunks: set[tuple[Any, Any]] = set()
+
+    # Term-pinned chunks are prepended unconditionally (like session pinning
+    # in app.py) so RRF-dominant competing terms can't crowd them out.
+    for term_pattern, probe, pin_n in TERM_PINNING:
+        if term_pattern.search(query):
+            for pdoc in fetch_term_pinned_docs(probe, pin_n, openai_client, qdrant):
+                src = pdoc["source_file"]
+                key = (src, pdoc.get("chunk_index"))
+                if key in seen_chunks:
+                    continue
+                seen_chunks.add(key)
+                per_source[src] = per_source.get(src, 0) + 1
+                kept.append(pdoc)
+
     for point, score in fused:
         payload = point.payload or {}
         source = payload.get("source_file", "Unknown")
@@ -272,6 +347,7 @@ def search_docs(
         per_source[source] = per_source.get(source, 0) + 1
         kept.append({
             "text": payload.get("text", ""),
+            "context_header": payload.get("context_header", ""),
             "source_file": source,
             "source_path": payload.get("source_path", ""),
             "page_number": payload.get("page_number"),
@@ -290,7 +366,10 @@ def rerank(query: str, docs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         return docs
     try:
         model = get_reranker()
-        pairs = [(query, d["text"]) for d in docs]
+        pairs = [
+            (query, ((d.get("context_header") or "") + " " + d["text"]).strip())
+            for d in docs
+        ]
         scores = model.predict(pairs)
         for d, s in zip(docs, scores):
             d["rerank_score"] = float(s)
@@ -312,7 +391,10 @@ def build_context(docs: list[dict[str, Any]]) -> str:
         src = d["source_file"]
         page = d.get("page_number")
         header = f"{src} (p. {page})" if page is not None else src
-        lines.append(f"[{i}] Source: {header}\n{d['text'].strip()}")
+        ctx_hdr = (d.get("context_header") or "").strip()
+        body = d["text"].strip()
+        text = f"{ctx_hdr}\n{body}" if ctx_hdr else body
+        lines.append(f"[{i}] Source: {header}\n{text}")
     return "\n\n".join(lines)
 
 
