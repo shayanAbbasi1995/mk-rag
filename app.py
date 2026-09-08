@@ -1,76 +1,85 @@
-"""
-Student-facing chat interface for the course RAG assistant.
-
-Run: streamlit run app.py
-"""
-
 import os
-
 import streamlit as st
 from dotenv import load_dotenv
-from langchain.chains import ConversationalRetrievalChain
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 
 load_dotenv()
 
-COLLECTION_NAME = "course-docs"
-TOP_K = 5
+st.set_page_config(page_title="Course Q&A Assistant", layout="centered")
+st.title("📚 Course Materials Assistant")
 
-st.set_page_config(page_title="Course Assistant", page_icon="📚")
-st.title("📚 Course Assistant")
-st.caption("Ask questions about your course materials.")
+# Secrets from environment or Streamlit Secrets
+OPENROUTER_API_KEY = st.secrets.get("OPENROUTER_API_KEY", os.getenv("OPENROUTER_API_KEY"))
+OPENAI_API_KEY = st.secrets.get("OPEN_AI_EMBEDDINGS_API_KEY", os.getenv("OPEN_AI_EMBEDDINGS_API_KEY"))
+QDRANT_URL = st.secrets.get("QDRANT_URL", os.getenv("QDRANT_URL"))
+QDRANT_API_KEY = st.secrets.get("QDRANT_API_KEY", os.getenv("QDRANT_API_KEY"))
 
 
 @st.cache_resource
-def build_chain():
-    embeddings = OpenAIEmbeddings(
-        model="text-embedding-3-small",
-        api_key=os.getenv("OPEN_AI_EMBEDDINGS_API_KEY"),
-    )
-    qdrant = QdrantVectorStore(
-        client=QdrantClient(
-            url=os.getenv("QDRANT_URL"),
-            api_key=os.getenv("QDRANT_API_KEY"),
-        ),
-        collection_name=COLLECTION_NAME,
+def get_retriever():
+    client = QdrantClient(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+    embeddings = OpenAIEmbeddings(model="text-embedding-3-small", api_key=OPENAI_API_KEY)
+    vector_store = QdrantVectorStore(
+        client=client,
+        collection_name="course-docs",
         embedding=embeddings,
     )
-    llm = ChatOpenAI(
-        model="gpt-4o-mini",
-        api_key=os.getenv("OPEN_AI_EMBEDDINGS_API_KEY"),
-        temperature=0,
-    )
-    return ConversationalRetrievalChain.from_llm(
-        llm=llm,
-        retriever=qdrant.as_retriever(search_kwargs={"k": TOP_K}),
-        return_source_documents=True,
-    )
+    return vector_store.as_retriever(search_kwargs={"k": 4})
 
 
-chain = build_chain()
+retriever = get_retriever()
 
-if "history" not in st.session_state:
-    st.session_state.history = []
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
+llm = ChatOpenAI(
+    model="deepseek/deepseek-chat",
+    api_key=OPENROUTER_API_KEY,
+    base_url="https://openrouter.ai/api/v1",
+    temperature=0.2,
+)
 
-for role, msg in st.session_state.history:
-    st.chat_message(role).write(msg)
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-if prompt := st.chat_input("Ask a question about the course..."):
-    st.chat_message("user").write(prompt)
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
 
-    result = chain.invoke(
-        {"question": prompt, "chat_history": st.session_state.chat_history}
-    )
-    answer = result["answer"]
-    sources = {doc.metadata.get("source_file", "unknown") for doc in result["source_documents"]}
+if prompt := st.chat_input("Ask a question about the course material..."):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
 
-    st.chat_message("assistant").write(answer)
-    if sources:
-        st.caption(f"Sources: {', '.join(sorted(sources))}")
+    with st.chat_message("assistant"):
+        try:
+            docs = retriever.invoke(prompt)
+            context = "\n\n".join(
+                [f"[{d.metadata.get('source_file', 'Unknown')}]: {d.page_content}" for d in docs]
+            )
+            sources = list(set([d.metadata.get("source_file", "Unknown") for d in docs]))
 
-    st.session_state.history.extend([("user", prompt), ("assistant", answer)])
-    st.session_state.chat_history.append((prompt, answer))
+            system_prompt = (
+                "You are a helpful teaching assistant. Answer the student's question strictly "
+                "using the context below. If the answer cannot be found in the context, say "
+                "you do not know based on the provided material. Do not fabricate answers.\n\n"
+                f"Context:\n{context}"
+            )
+
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ]
+            reply_content = st.write_stream(
+                chunk.content for chunk in llm.stream(messages)
+            )
+
+            if sources:
+                attribution = f"\n\n*Referenced Material: {', '.join(sources)}*"
+                st.markdown(attribution)
+                reply_content += attribution
+
+            st.session_state.messages.append({"role": "assistant", "content": reply_content})
+
+        except Exception as e:
+            st.error(f"Could not generate a response: {e}")
+            st.session_state.messages.append({"role": "assistant", "content": f"[Error: {e}]"})

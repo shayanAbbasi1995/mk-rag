@@ -63,7 +63,7 @@ def ensure_collection() -> None:
         print(f"Created collection '{COLLECTION_NAME}'")
 
 
-def load_document(path: Path):
+def load_document(path: Path) -> list:
     suffix = path.suffix.lower()
     if suffix == ".pdf":
         return PyPDFLoader(str(path)).load()
