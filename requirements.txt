@@ -21,6 +21,10 @@ tqdm==4.66.5
 # Embeddings + LLM
 openai==1.55.3
 
+# Cross-encoder reranker used by app.py::rerank_docs and scripts/eval.py.
+# ~90 MB model downloaded lazily on first use; runs on CPU.
+sentence-transformers==4.1.0
+
 # Vector store
 qdrant-client==1.12.1
 

@@ -27,6 +27,7 @@ from qdrant_client.models import (
     Fusion,
     FusionQuery,
     MatchAny,
+    MatchValue,
     Prefetch,
     SparseVector,
 )
@@ -73,7 +74,7 @@ SPARSE_VECTOR_NAME: str = "sparse"
 # now filtered by (a) the sparse branch producing zero score on queries
 # with no vocabulary overlap and (b) MAX_HITS_PER_SOURCE + the diversity
 # rules below.
-RETRIEVER_FETCH_K: int = 12
+RETRIEVER_FETCH_K: int = 20
 RETRIEVER_K: int = 6
 MAX_HITS_PER_SOURCE: int = 2
 CHAT_HISTORY_TURNS: int = 10
@@ -99,6 +100,51 @@ SESSION_QUERY_RE = re.compile(
 # How many session-specific chunks to pin at the top of the context. Kept
 # small so semantic hits still get most of the RETRIEVER_K budget.
 SESSION_PIN_TOP_N: int = 3
+
+# --- Multi-query expansion + reranker knobs --------------------------------
+# When multi-query is enabled we generate N alternative phrasings of the
+# rewritten query and fuse per-branch Prefetch results via RRF. This trades
+# 1 extra LLM call (variant generation) + N-1 extra embed calls (batched)
+# for materially better recall on jargon-heavy or ambiguous queries.
+MULTI_QUERY_VARIANTS: int = 3  # produces 4 total (original + 3 variants)
+
+# Cross-encoder reranker settings (P2.3). We over-fetch RETRIEVER_FETCH_K
+# candidates from Qdrant and let the cross-encoder pick the top RETRIEVER_K
+# by (query, passage) relevance score. RETRIEVER_FETCH_K was bumped from 12
+# to 20 so the reranker has a wider candidate pool to work with.
+RERANKER_MODEL_ID: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
+# Admin/syllabus query detection (P2.1). When a student asks about admin
+# concerns (dates, deadlines, office hours, exam schedule), we filter
+# retrieval to doc_type="syllabus_outline" so the model doesn't pull an
+# example midterm question from a textbook chapter that happens to
+# mention "midterm" and answer with textbook content.
+ADMIN_QUERY_RE = re.compile(
+    # Admin-query triggers. We anchor 'when' with a following auxiliary
+    # ('when is/are/does...') so questions like "when would stratified
+    # sampling be preferred" don't get mis-routed to the syllabus filter.
+    # The unconditional keywords (midterm, exam, office hours, etc.) are
+    # strong-enough signals on their own.
+    r"\b("
+    r"when\s+(?:is|are|does|do|will|can\s+i|should\s+i)"
+    r"|what\s+(?:day|date|time)"
+    r"|office\s+hours"
+    r"|midterm|final\s+exam"
+    r"|assignment\s+(?:is|due)|due\s+date"
+    r"|grading\s+scheme|grade\s+(?:breakdown|weight)"
+    r"|syllabus|course\s+outline|schedule|deadline"
+    r")\b",
+    re.IGNORECASE,
+)
+
+# Heuristic for whether a follow-up needs conversational rewriting.
+# Pronoun/reference tokens whose presence in a short query strongly
+# suggests we need earlier context to resolve them.
+_COREF_TOKENS = re.compile(
+    r"\b(it|its|this|that|these|those|they|them|their|he|she|his|her|"
+    r"one|ones|example|another|same|previous|above|earlier)\b",
+    re.IGNORECASE,
+)
 
 # Course branding — set COURSE_NAME in .env or Streamlit secrets to customise
 # the UI title without touching code.
@@ -319,36 +365,208 @@ def _fetch_session_chunks(
     return docs
 
 
-def search_docs(query: str) -> list[Document]:
-    """Hybrid dense + sparse retrieval fused with Reciprocal Rank Fusion.
+# ---------------------------------------------------------------------------
+# Query understanding: conversational rewrite + multi-query expansion.
+# ---------------------------------------------------------------------------
+
+
+def _looks_self_contained(query: str) -> bool:
+    """Cheap heuristic: is the query understandable without earlier turns?
+
+    A query is considered self-contained if:
+      - It contains no coreferential pronouns/anaphoric tokens (see
+        _COREF_TOKENS), OR
+      - It is long enough (>= 8 tokens) that any pronouns are almost
+        certainly disambiguated by the query text itself
+        (e.g. "What is the difference between construct validity and
+        content validity?" contains 'the' but is self-contained).
+    """
+    tokens = re.findall(r"\w+", query)
+    if len(tokens) >= 8:
+        return True
+    return _COREF_TOKENS.search(query) is None
+
+
+def rewrite_query(query: str, history: list[dict[str, str]]) -> str:
+    """Rewrite a follow-up question into a self-contained search query.
+
+    We only make the extra LLM call when both conditions hold:
+      1. There *is* prior conversation to draw from.
+      2. The current query looks like it references earlier context
+         (see `_looks_self_contained`).
+
+    Falls back to the original query on any LLM error — a failed rewrite
+    is much better than blocking retrieval on a network hiccup.
+
+    Uses `temperature=0` because rewriting is a deterministic
+    transformation: given the same history and follow-up, we want the same
+    canonical form every time.
+    """
+    if not history:
+        return query
+    if _looks_self_contained(query):
+        return query
+
+    # Include only the last 3 turns of the history for cost / latency.
+    tail = history[-3:]
+    convo = "\n".join(
+        f"{m['role'].upper()}: {m['content']}" for m in tail
+    )
+
+    system = (
+        "You are a query rewriter. Given conversation history and a "
+        "follow-up question, rewrite the follow-up as a fully self-"
+        "contained search query. Return ONLY the rewritten query, no "
+        "explanation."
+    )
+    user_msg = f"Conversation:\n{convo}\n\nFollow-up: {query}\n\nRewritten query:"
+
+    try:
+        rewriter = get_llm().bind(temperature=0)
+        resp = rewriter.invoke([
+            {"role": "system", "content": system},
+            {"role": "user", "content": user_msg},
+        ])
+        rewritten = (getattr(resp, "content", "") or "").strip()
+        # Strip surrounding quotes the model sometimes adds.
+        rewritten = rewritten.strip('"').strip("'").strip()
+        # Sanity: if the model returned nothing, keep the original.
+        if not rewritten:
+            return query
+        return rewritten
+    except Exception:
+        return query
+
+
+def generate_query_variants(query: str) -> list[str]:
+    """Return `[original] + up to MULTI_QUERY_VARIANTS alt phrasings`.
+
+    Multi-query RRF is a well-known recall win: paraphrases catch chunks
+    whose lexical form differs from the original query but whose meaning
+    matches (e.g. "sample size for surveys" vs. "how many respondents do
+    I need for a survey"). We fuse per-variant Qdrant results via RRF.
+
+    Gracefully returns `[query]` on any LLM failure so retrieval never
+    breaks on a network error.
+    """
+    system = (
+        "Generate 3 alternative phrasings of this search query for a "
+        "university marketing research course. Return ONLY the 3 queries, "
+        "one per line, no numbering."
+    )
+    try:
+        rewriter = get_llm().bind(temperature=0.3)
+        resp = rewriter.invoke([
+            {"role": "system", "content": system},
+            {"role": "user", "content": query},
+        ])
+        raw = (getattr(resp, "content", "") or "").strip()
+        variants: list[str] = []
+        for line in raw.splitlines():
+            cleaned = re.sub(r"^\s*[-*\d.)\s]+", "", line).strip().strip('"').strip("'")
+            if cleaned and cleaned.lower() != query.lower():
+                variants.append(cleaned)
+        variants = variants[:MULTI_QUERY_VARIANTS]
+        return [query] + variants
+    except Exception:
+        return [query]
+
+
+def _reciprocal_rank_fusion(
+    ranked_lists: list[list[Any]],
+    k: int = 60,
+) -> list[tuple[Any, float]]:
+    """Standard RRF: score(doc) = sum(1 / (k + rank_in_list_i))
+    across all lists in which the doc appears.
+
+    We identify documents by (source_file, chunk_index) — matches the
+    same key used elsewhere for dedup so a doc that shows up under
+    multiple variants is fused correctly.
+
+    Returns a list of (representative_point, score) sorted by score desc.
+    """
+    from collections import defaultdict
+
+    scores: dict[tuple[Any, Any], float] = defaultdict(float)
+    exemplars: dict[tuple[Any, Any], Any] = {}
+    for lst in ranked_lists:
+        for rank, point in enumerate(lst):
+            payload = point.payload or {}
+            key = (
+                payload.get("source_file", "Unknown"),
+                payload.get("chunk_index"),
+            )
+            scores[key] += 1.0 / (k + rank + 1)
+            if key not in exemplars:
+                exemplars[key] = point
+
+    fused = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
+    return [(exemplars[k], s) for k, s in fused]
+
+
+def _detect_doc_type_filter(query: str) -> str | None:
+    """Return "syllabus_outline" for admin queries, else None.
+
+    Admin queries (midterm date, office hours, deadlines) should be answered
+    from the course outline / syllabus, not from a textbook chapter that
+    happens to mention the word "midterm" in an example.
+
+    Returning None means "no filter" — search all doc_types.
+    """
+    if ADMIN_QUERY_RE.search(query):
+        return "syllabus_outline"
+    return None
+
+
+def search_docs(
+    query: str,
+    doc_type_filter: str | None = None,
+) -> list[Document]:
+    """Hybrid dense + sparse retrieval, multi-query expansion, RRF fused.
 
     Pipeline:
-      1. Embed the query (OpenAI text-embedding-3-small).
-      2. Sparse-encode the query (in-process BM25-style hasher).
-      3. Ask Qdrant for `RETRIEVER_FETCH_K` candidates from EACH branch:
-         - dense: cosine similarity against the `dense` named vector.
-         - sparse: dot-product against the `sparse` named vector, whose
-           inverted index gives us exact-token overlap (great for jargon
-           like "TURF", "Cronbach alpha", "conjoint").
-      4. Fuse the two ranked lists with RRF (server-side, `Fusion.RRF`).
-         The output is a single ranked list biased towards items that
-         appear high in *both* lists — the standard hybrid-retrieval win.
-      5. Collapse duplicate (source_file, chunk_index) hits — belt-and-
-         braces against the historical duplication incident (session-05.qmd
-         vs session-05.html covered the same content under different
-         extensions).
-      6. Cross-file text-identity check to catch any residual twins.
-      7. Cap per-source-file at MAX_HITS_PER_SOURCE so a single textbook
-         chapter doesn't monopolize the context window.
-      8. Return the top RETRIEVER_K survivors in fused score order.
+      1. Generate query variants (original + N paraphrases) via the LLM.
+      2. Batch-embed all variants in one OpenAI call.
+      3. For each variant, Prefetch both dense and sparse branches with
+         RETRIEVER_FETCH_K limit. Optionally filter by doc_type.
+      4. Fuse *all* branch result lists with RRF (client-side, so we can
+         span variants).
+      5. Merge session-pinned chunks up front (unconditional).
+      6. Dedup on (source_file, chunk_index) + normalised-text prefix
+         (belt-and-braces against session-05.qmd/.html twin duplicates).
+      7. Cap per-source-file at MAX_HITS_PER_SOURCE so one textbook
+         chapter can't monopolise the context window.
+      8. Return the top RETRIEVER_K survivors.
 
-    Uses raw qdrant_client (not LangChain's QdrantVectorStore) because the
-    ingest script writes metadata at the payload top level, not nested
-    under a 'metadata' key, and because LangChain's Qdrant wrapper does
-    not expose the hybrid Query API.
+    Note: the reranker (cross-encoder) runs AFTER this function returns —
+    it's called from the chat loop, not here, so search_docs stays a
+    pure retrieval primitive that eval scripts can call independently.
+
+    Uses raw qdrant_client (not LangChain's QdrantVectorStore) because
+    the ingest script writes payload at the top level, not nested under
+    'metadata', and because LangChain's Qdrant wrapper does not expose
+    the hybrid Query API.
     """
-    query_vector = get_embeddings().embed_query(query)
-    sp_indices, sp_values = encode_sparse_query(query)
+    # Build the doc_type filter once; every Prefetch below reuses it.
+    qdrant_filter: Filter | None = None
+    if doc_type_filter:
+        qdrant_filter = Filter(
+            must=[
+                FieldCondition(
+                    key="doc_type",
+                    match=MatchValue(value=doc_type_filter),
+                )
+            ]
+        )
+
+    # ---- Query expansion + batched embedding ---------------------------
+    variants = generate_query_variants(query)
+    # Embed all variants in one API call. embed_documents preserves order.
+    variant_vectors = get_embeddings().embed_documents(variants)
+    # The 'primary' query vector — used for session-pin ranking below — is
+    # the first embedding, i.e. the original (post-rewrite) query.
+    query_vector = variant_vectors[0]
+    variant_sparse = [encode_sparse_query(v) for v in variants]
 
     # Session-aware augmentation. If the student asks about a specific
     # session ("what are the topics in session 1?", "week 4 readings?"),
@@ -364,33 +582,55 @@ def search_docs(query: str) -> list[Document]:
             session_n, query_vector, top_n=SESSION_PIN_TOP_N
         )
 
-    # If the query has no encodable tokens (all stopwords, empty), skip
-    # the sparse branch — sending an empty SparseVector would surface a
-    # Qdrant validation error. Fall back to dense-only.
-    prefetch: list[Prefetch] = [
-        Prefetch(
-            query=query_vector,
-            using=DENSE_VECTOR_NAME,
-            limit=RETRIEVER_FETCH_K,
-        ),
-    ]
-    if sp_indices:
-        prefetch.append(
-            Prefetch(
-                query=SparseVector(indices=sp_indices, values=sp_values),
-                using=SPARSE_VECTOR_NAME,
-                limit=RETRIEVER_FETCH_K,
-            )
-        )
+    # ---- Per-variant Prefetch and manual RRF ---------------------------
+    # We run one dense + one sparse Prefetch per variant. Each individual
+    # Prefetch is scored server-side, then we pull *unfused* per-branch
+    # results (via a light-weight query per branch) and RRF them
+    # client-side across ALL branches. This gives us multi-query recall
+    # gains that Qdrant's single-request Fusion.RRF can't reach on its
+    # own (it fuses only within one query_points call).
+    client = get_qdrant_client()
+    branch_results: list[list[Any]] = []
 
-    response = get_qdrant_client().query_points(
-        collection_name=QDRANT_COLLECTION,
-        prefetch=prefetch,
-        query=FusionQuery(fusion=Fusion.RRF),
-        limit=RETRIEVER_FETCH_K,
-        with_payload=True,
-    )
-    results = response.points
+    for variant_vec, (sp_indices, sp_values) in zip(
+        variant_vectors, variant_sparse, strict=True
+    ):
+        # Dense branch: cosine against text-embedding-3-small vectors.
+        try:
+            dense_resp = client.query_points(
+                collection_name=QDRANT_COLLECTION,
+                query=variant_vec,
+                using=DENSE_VECTOR_NAME,
+                limit=RETRIEVER_FETCH_K,
+                with_payload=True,
+                query_filter=qdrant_filter,
+            )
+            branch_results.append(list(dense_resp.points))
+        except Exception:
+            # A single-branch failure shouldn't take down retrieval.
+            pass
+
+        # Sparse branch: skip when the tokenizer emitted nothing (query
+        # was all stopwords or purely non-alphanumeric). Sending an empty
+        # SparseVector is a Qdrant validation error.
+        if sp_indices:
+            try:
+                sparse_resp = client.query_points(
+                    collection_name=QDRANT_COLLECTION,
+                    query=SparseVector(indices=sp_indices, values=sp_values),
+                    using=SPARSE_VECTOR_NAME,
+                    limit=RETRIEVER_FETCH_K,
+                    with_payload=True,
+                    query_filter=qdrant_filter,
+                )
+                branch_results.append(list(sparse_resp.points))
+            except Exception:
+                pass
+
+    # Fuse across every branch (dense-for-variant-1, sparse-for-variant-1,
+    # dense-for-variant-2, ...). RRF is order-agnostic.
+    fused = _reciprocal_rank_fusion(branch_results)
+    results = [p for p, _score in fused]
 
     seen_chunks: set[tuple[str, Any]] = set()
     seen_text_prefix: set[str] = set()
@@ -456,7 +696,15 @@ def search_docs(query: str) -> list[Document]:
                 "source_file": source,
                 "page_number": payload.get("page_number"),
                 "element_category": payload.get("element_category", ""),
-                "score": point.score,
+                "doc_type": payload.get("doc_type"),
+                "video_name": payload.get("video_name"),
+                "start_seconds": payload.get("start_seconds"),
+                "end_seconds": payload.get("end_seconds"),
+                "start_time": payload.get("start_time"),
+                "end_time": payload.get("end_time"),
+                # point.score for fused results is a raw RRF-branch score,
+                # which is not comparable across queries; kept for debugging.
+                "score": getattr(point, "score", None),
             },
         ))
         if len(kept) >= RETRIEVER_K:
@@ -480,6 +728,71 @@ def get_llm() -> ChatOpenAI:
     )
 
 
+@st.cache_resource
+def get_reranker():  # type: ignore[no-untyped-def]
+    """Load the cross-encoder reranker on first use, cache thereafter.
+
+    `cross-encoder/ms-marco-MiniLM-L-6-v2` is ~90 MB, runs comfortably on
+    CPU, and scores (query, passage) pairs on their true topical
+    relevance — a step up from bi-encoder cosine similarity because it
+    reads both texts jointly instead of encoding them independently.
+
+    Import is lazy so the app boots even if sentence-transformers is not
+    installed (retrieval still works, we just skip reranking).
+    """
+    from sentence_transformers import CrossEncoder
+    return CrossEncoder(RERANKER_MODEL_ID)
+
+
+def rerank_docs(query: str, docs: list[Document]) -> list[Document]:
+    """Rerank retrieved docs by cross-encoder relevance to `query`.
+
+    We over-fetch a big candidate pool from Qdrant (RETRIEVER_FETCH_K),
+    let the cross-encoder score each (query, passage) pair, and return
+    the top RETRIEVER_K by score. If sentence-transformers isn't
+    installed or scoring fails, we degrade to the original order so
+    retrieval never breaks on a reranker outage.
+    """
+    if not docs:
+        return docs
+    try:
+        reranker = get_reranker()
+        pairs = [(query, d.page_content) for d in docs]
+        scores = reranker.predict(pairs)
+        scored = sorted(zip(scores, docs), key=lambda t: float(t[0]), reverse=True)
+        top = [d for _s, d in scored[:RETRIEVER_K]]
+        # Stash the rerank score in metadata for debugging.
+        for (s, _), d in zip(scored[:RETRIEVER_K], top):
+            d.metadata["rerank_score"] = float(s)
+        return top
+    except Exception:
+        return docs[:RETRIEVER_K]
+
+
+# --- Citation post-processor (P3a) -----------------------------------------
+# Matches inline [N] citations (single or multiple like [1][3]) so we can
+# style them consistently in the Streamlit render.
+_CITATION_RE = re.compile(r"\[(\d+)\]")
+
+
+def _render_citations(text: str, citation_map: dict[int, str]) -> str:
+    """Emphasise inline [N] citations for the Streamlit renderer.
+
+    `citation_map` is `{ passage_number: human_readable_source }`. We use
+    it to wrap each `[N]` in **bold** — Streamlit renders that as visible
+    tags without producing a wall of colour, and the mapping is a
+    stepping-stone for future features (tooltip hover, click-to-scroll).
+    """
+
+    def _sub(m: re.Match[str]) -> str:
+        n = int(m.group(1))
+        if n in citation_map:
+            return f"**[{n}]**"
+        return m.group(0)
+
+    return _CITATION_RE.sub(_sub, text)
+
+
 llm = get_llm()
 
 
@@ -490,11 +803,50 @@ for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
+def _format_timestamp(seconds: int | float | None) -> str:
+    """Format a second offset as MM:SS or H:MM:SS. Used in citations
+    for video-transcript chunks so students can jump to the exact
+    moment in the lecture recording. Returns "?" for missing/negative
+    inputs so the citation still renders instead of crashing."""
+    if seconds is None:
+        return "?"
+    try:
+        s = int(float(seconds))
+    except (TypeError, ValueError):
+        return "?"
+    if s < 0:
+        return "?"
+    h, rem = divmod(s, 3600)
+    m, sec = divmod(rem, 60)
+    if h:
+        return f"{h}:{m:02d}:{sec:02d}"
+    return f"{m:02d}:{sec:02d}"
+
+
 def _format_citation(doc: Document) -> str:
-    """Human-readable source pointer: 'filename (p. 42)' when a page
-    number exists in the payload, otherwise just the filename. Slide
-    decks parsed from .qmd/.html have no page concept, so we fall back
-    gracefully."""
+    """Human-readable source pointer.
+
+    Three shapes, picked in order:
+      1. Video transcript: `source_file (MM:SS-MM:SS)` (P3b) — the
+         transcript filename disambiguates recordings with duplicate
+         labels, and the timestamp span lets students jump to the exact
+         spot in the video. Written to match the payload written by
+         scripts/ingest_video.py (start_time / end_time strings).
+      2. Paged source (PDFs): `filename (p. 42)`.
+      3. Everything else (slide decks parsed from .qmd/.html): just the
+         filename.
+    """
+    if doc.metadata.get("doc_type") == "video_transcript":
+        source_file = doc.metadata.get("source_file") or doc.metadata.get("video_name") or "video"
+        # Prefer the pre-formatted start_time / end_time strings written
+        # by ingest_video.py; fall back to computing from *_seconds so
+        # older/legacy payloads still render.
+        start = doc.metadata.get("start_time") or _format_timestamp(doc.metadata.get("start_seconds"))
+        end = doc.metadata.get("end_time") or _format_timestamp(doc.metadata.get("end_seconds"))
+        # Use an en-dash between times so the range visually distinguishes
+        # from the "-" in filenames like "session-01.qmd".
+        return f"{source_file} ({start}–{end})"
+
     src = doc.metadata.get("source_file", "Unknown")
     page = doc.metadata.get("page_number")
     if page is not None:
@@ -531,18 +883,37 @@ def _history_messages(turns: int) -> list[dict[str, str]]:
 
 
 if prompt := st.chat_input("Ask a question about the course material..."):
+    # Persist the ORIGINAL prompt in history/display — students see and can
+    # refer back to what they actually typed, not the rewritten form.
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
         try:
-            docs = search_docs(prompt)
+            # Step 1: conversational rewrite. If the query is a follow-up
+            # ("give me an example of it"), rewrite it to a stand-alone
+            # search query using the last few turns of conversation.
+            # History passed here EXCLUDES the current prompt because the
+            # rewriter needs *prior* turns, not the message it's rewriting.
+            prior_hist = st.session_state.messages[:-1]
+            rewritten = rewrite_query(prompt, prior_hist)
+
+            # Step 2: doc-type routing. Admin queries (midterm date, office
+            # hours) get filtered to the syllabus/outline; everything else
+            # searches all doc_types.
+            doc_type = _detect_doc_type_filter(rewritten)
+
+            # Step 3: hybrid + multi-query retrieval.
+            docs = search_docs(rewritten, doc_type_filter=doc_type)
+
+            # Step 4: cross-encoder rerank (P2.3). We over-fetched to give
+            # the reranker a wider pool; it picks the best RETRIEVER_K.
+            docs = rerank_docs(rewritten, docs)
 
             if not docs:
-                # Everything was filtered by SCORE_FLOOR. Rather than let
-                # the model hallucinate from an empty context, tell the
-                # student explicitly.
+                # No relevant retrieval — tell the student rather than let
+                # the model hallucinate from an empty context.
                 msg = (
                     "I could not find anything relevant to that question "
                     "in the course materials I have indexed. Try rephrasing, "
@@ -553,6 +924,14 @@ if prompt := st.chat_input("Ask a question about the course material..."):
                 st.session_state.messages.append({"role": "assistant", "content": msg})
             else:
                 context = _build_context_block(docs)
+
+                # Passage number -> human-readable source. Used both for
+                # the Referenced Material line and to validate that model
+                # [N] citations correspond to real passages.
+                citation_map: dict[int, str] = {}
+                for i, d in enumerate(docs, start=1):
+                    citation_map[i] = _format_citation(d)
+
                 # De-dup citations while preserving retrieval order so the
                 # "Referenced Material" line reads top-hit-first.
                 seen: set[str] = set()
@@ -563,16 +942,31 @@ if prompt := st.chat_input("Ask a question about the course material..."):
                         seen.add(c)
                         citations.append(c)
 
+                # System prompt (P1.3 + P3a): grounding + refusal +
+                # sub-sentence citation placement.
                 system_prompt = (
                     f"You are a helpful teaching assistant for {COURSE_NAME}. "
-                    "Answer the student's question "
-                    "strictly using the numbered context passages below. If "
-                    "the answer cannot be found in the context, say you do not "
-                    "know based on the provided material. Do not fabricate "
-                    "answers. When possible, ground your answer in the specific "
-                    "concept, framework, or method the course material "
-                    "references, and cite passage numbers like [1], [2] "
-                    "when appropriate.\n\n"
+                    "Answer the student's question using ONLY the numbered "
+                    "context passages below.\n\n"
+                    "Grounding rules:\n"
+                    "1. Ground every factual claim by citing the supporting "
+                    "passage inline with [N] where N is the passage number. "
+                    "Place the [N] IMMEDIATELY after the specific claim it "
+                    "supports, not just at the end of the sentence. Example: "
+                    "\"The typical response rate for mail surveys is 10-15% [1], "
+                    "compared to 30-40% for telephone interviews [2].\"\n"
+                    "2. If multiple passages support the same claim, cite "
+                    "them together: [1][3].\n"
+                    "3. If the question cannot be answered from the "
+                    "retrieved passages, you MUST respond with EXACTLY this "
+                    "form: \"Based on the provided course materials, I "
+                    "cannot find information about this. [General knowledge, "
+                    "not from course materials:] ...\" — then give your best "
+                    "general-knowledge answer. Never fabricate a citation.\n"
+                    "4. Prefer the specific concept, framework, or method "
+                    "the course material references (e.g. \"Cronbach's alpha\", "
+                    "\"stratified sampling\", \"conjoint analysis\") over "
+                    "generic phrasing.\n\n"
                     "The conversation history above is provided so that "
                     "follow-up questions ('give me an example', 'why?') can "
                     "be interpreted correctly.\n\n"
@@ -593,9 +987,12 @@ if prompt := st.chat_input("Ask a question about the course material..."):
                 messages.extend(hist)
                 messages.append({"role": "user", "content": prompt})
 
-                reply_content = st.write_stream(
+                # Stream the reply, collect the full text so we can post-
+                # process citations before persisting to history.
+                raw_reply = st.write_stream(
                     chunk.content for chunk in llm.stream(messages)
                 )
+                reply_content = _render_citations(raw_reply, citation_map)
 
                 if citations:
                     attribution = f"\n\n*Referenced Material: {', '.join(citations)}*"

@@ -28,6 +28,7 @@ import logging
 import os
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -94,6 +95,38 @@ EMBEDDING_MODEL = (
     _env_model if _env_model.startswith("text-embedding-") else "text-embedding-3-small"
 )
 
+# LLM-generated contextual headers (P2.2). We call DeepSeek-V3 via
+# OpenRouter for a single-sentence topic description prepended to each
+# chunk before embedding + indexing. This buys us contextual retrieval
+# (Anthropic's "Contextual Retrieval" recipe): the embedding of a chunk
+# that says "This section describes stratified sampling design decisions"
+# ranks much better on queries like "how do I set up stratified sampling"
+# than the raw chunk body alone.
+#
+# OPENROUTER_API_NAME in .env is a project label (mr-rag-open), NOT a
+# model ID — match how app.py treats it. Pass the real ID here.
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+OPENROUTER_MODEL = "deepseek/deepseek-chat"  # DeepSeek-V3
+
+# Max character length of the doc-summary snippet passed to the context
+# LLM. Bigger context helps the LLM disambiguate the chunk, but every
+# extra character multiplies across ~8,875 calls. 800 chars is enough for
+# 1-2 paragraphs of a document opening, which is what the LLM needs to
+# know "this is Chapter 4 of a marketing-research textbook about X".
+DOC_SUMMARY_MAX_CHARS = 800
+# Max chunk-text characters shown to the context LLM. 500 chars is enough
+# for the LLM to identify the topic without paying to embed the whole
+# chunk into the prompt as well.
+CHUNK_SNIPPET_MAX_CHARS = 500
+
+# Concurrency for the LLM-context per-chunk calls within one file.
+# DeepSeek-V3 via OpenRouter handles ~10 concurrent requests easily, and
+# most chunks return in 0.5-2s. Serial calls make full-corpus re-ingest
+# unbearably slow (~2 hours); with 10-way concurrency we're down to ~15
+# minutes. Order is preserved because we submit-then-map over futures
+# with the original chunk order.
+LLM_CONTEXT_CONCURRENCY = 10
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)-7s %(name)s: %(message)s",
@@ -128,6 +161,19 @@ def build_openai_client() -> OpenAI:
     if not api_key:
         raise RuntimeError("OPEN_AI_EMBEDDINGS_API_KEY missing from .env")
     return OpenAI(api_key=api_key)
+
+
+def build_openrouter_client() -> OpenAI:
+    """OpenAI-SDK-compatible client pointed at OpenRouter.
+
+    Used only for the P2.2 contextual-header LLM calls. We isolate this
+    from `build_openai_client` because the two use different API keys and
+    different base URLs, and mixing them up is a silent auth error.
+    """
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENROUTER_API_KEY missing from .env")
+    return OpenAI(api_key=api_key, base_url=OPENROUTER_BASE_URL)
 
 
 def build_qdrant_client() -> QdrantClient:
@@ -188,6 +234,9 @@ _INDEX_FIELDS: dict[str, PayloadSchemaType] = {
     "element_category": PayloadSchemaType.KEYWORD,
     "file_hash": PayloadSchemaType.KEYWORD,
     "page_number": PayloadSchemaType.INTEGER,
+    # doc_type filter (app.py::_detect_doc_type_filter -> "syllabus_outline"
+    # for admin queries). Must be indexed for MatchValue filters to work.
+    "doc_type": PayloadSchemaType.KEYWORD,
 }
 
 
@@ -248,6 +297,110 @@ def embed_texts(
                 )
                 time.sleep(wait)
     return vectors
+
+
+# -----------------------------------------------------------------------------
+# LLM-generated contextual headers (P2.2)
+# -----------------------------------------------------------------------------
+
+
+def build_doc_summary(elements: list[Any]) -> str:
+    """Return an ~800-char summary snippet built from the first Title and
+    NarrativeText elements of a document.
+
+    Used as background context in the ``generate_llm_context`` prompt so
+    the LLM can write chunk-topic sentences that reflect the *document's*
+    subject rather than just what's visible in the chunk.
+
+    Concatenation order preserves document order (elements are already
+    document-ordered by the partitioner). We stop as soon as we've
+    collected DOC_SUMMARY_MAX_CHARS characters — no need to walk the
+    whole doc.
+    """
+    parts: list[str] = []
+    used = 0
+    for el in elements:
+        category = getattr(el, "category", None) or el.to_dict().get("type", "")
+        if category not in ("Title", "NarrativeText"):
+            continue
+        text = (getattr(el, "text", "") or "").strip()
+        if not text:
+            continue
+        parts.append(text)
+        used += len(text) + 1  # +1 for the joining space
+        if used >= DOC_SUMMARY_MAX_CHARS:
+            break
+    summary = " ".join(parts)
+    return summary[:DOC_SUMMARY_MAX_CHARS]
+
+
+def generate_llm_context(
+    chunk_text: str,
+    doc_summary: str,
+    openrouter_client: OpenAI | None,
+    model: str = OPENROUTER_MODEL,
+) -> str:
+    """Return a one-sentence topic descriptor for the chunk, or "" on failure.
+
+    Mirrors Anthropic's contextual-retrieval prompt: the LLM sees the doc
+    summary and the chunk, then writes a self-contained sentence that
+    describes what concept or topic the chunk covers. Prepending this
+    sentence to the chunk before embedding materially improves recall on
+    queries whose vocabulary differs from the chunk body.
+
+    Backoff mirrors ``embed_texts`` (3 attempts, 1s/2s/4s) so a transient
+    OpenRouter blip doesn't wipe a run's worth of context calls.
+
+    Returns "" on any exception — callers should fall back to the
+    rule-based breadcrumb header in that case.
+    """
+    if openrouter_client is None or not chunk_text.strip():
+        return ""
+
+    system = (
+        "You are a document indexer. Given a document summary and a text "
+        "chunk, write a single sentence (max 20 words) that describes "
+        "what concept or topic this chunk covers. Return ONLY the "
+        "sentence, no quotes or punctuation at start/end."
+    )
+    user = (
+        f"Document summary: {doc_summary}\n\n"
+        f"Chunk: {chunk_text[:CHUNK_SNIPPET_MAX_CHARS]}"
+    )
+
+    for attempt in range(3):
+        try:
+            resp = openrouter_client.chat.completions.create(
+                model=model,
+                temperature=0.0,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+            )
+            sentence = (resp.choices[0].message.content or "").strip()
+            # Strip stray wrapping quotes / trailing punctuation the LLM
+            # sometimes adds despite the instruction. We DO keep the
+            # sentence's internal punctuation; only strip the outer.
+            sentence = sentence.strip().strip('"').strip("'").strip()
+            # Kill trailing full stops so the prepend doesn't produce
+            # "topic.\nBody" which reads awkwardly next to real prose.
+            sentence = sentence.rstrip(".!?")
+            return sentence
+        except Exception as e:  # noqa: BLE001
+            if attempt == 2:
+                logger.warning(
+                    "LLM context call failed after 3 attempts: %s. "
+                    "Falling back to rule-based breadcrumb.", e,
+                )
+                return ""
+            wait = 2 ** attempt
+            logger.debug(
+                "LLM context call attempt %d/3 failed: %s. Retrying in %ds.",
+                attempt + 1, e, wait,
+            )
+            time.sleep(wait)
+    return ""
 
 
 # -----------------------------------------------------------------------------
@@ -429,7 +582,9 @@ def chunks_to_points(
     vectors: list[list[float]],
     sparse_vectors: list[tuple[list[int], list[float]]],
     context_headers: list[str],
+    breadcrumbs: list[str],
     prefixed_texts: list[str],
+    doc_type: str,
 ) -> list[PointStruct]:
     """Convert (chunk, dense vec, sparse vec, header, prefixed-text) tuples
     into Qdrant PointStructs.
@@ -437,8 +592,12 @@ def chunks_to_points(
     Payload carries all the metadata a downstream retriever might filter or
     cite on: source filename, docs-relative path, element category, page
     number, parent_id, per-file chunk index, and — new for the contextual
-    ingest — the breadcrumb-prefixed ``text`` alongside a standalone
-    ``context_header`` for debugging.
+    ingest — the LLM-or-breadcrumb-prefixed ``text`` alongside a standalone
+    ``context_header`` (LLM sentence when available, breadcrumb otherwise)
+    and a separate ``breadcrumb`` field kept for debugging so we can
+    inspect the old rule-based header even when the LLM one is winning.
+    ``doc_type`` is written per-point so ``app.py::_detect_doc_type_filter``
+    can route admin queries at retrieval time.
 
     Each point stores **two** named vectors:
       * ``dense``  -> OpenAI text-embedding-3-small (1536-dim, cosine)
@@ -453,8 +612,8 @@ def chunks_to_points(
     except ValueError:
         rel = source_path.as_posix()
 
-    for i, (chunk, vector, (sp_idx, sp_vals), header, prefixed_text) in enumerate(
-        zip(chunks, vectors, sparse_vectors, context_headers, prefixed_texts, strict=True)
+    for i, (chunk, vector, (sp_idx, sp_vals), header, breadcrumb, prefixed_text) in enumerate(
+        zip(chunks, vectors, sparse_vectors, context_headers, breadcrumbs, prefixed_texts, strict=True)
     ):
         md = chunk.metadata
         payload = {
@@ -470,10 +629,14 @@ def chunks_to_points(
             "file_hash": file_hash,
             # `text` stores the *prefixed* form so retrieval, display, and
             # LLM context all see the contextualised chunk. `context_header`
-            # is stored separately so we can audit which chunks got a
-            # header without regexing the prefix back out of `text`.
+            # is stored separately (LLM sentence if we got one, else the
+            # breadcrumb) so we can audit which chunks got a header
+            # without regexing the prefix back out of `text`. The raw
+            # rule-based breadcrumb is kept in `breadcrumb` for debugging.
             "text": prefixed_text,
             "context_header": header,
+            "breadcrumb": breadcrumb,
+            "doc_type": doc_type,
         }
         # Qdrant point IDs must be int or UUID. We use uuid4 so re-ingesting
         # a file doesn't collide with a previously-indexed version.
@@ -537,12 +700,22 @@ def ingest_file(
     file_hash: str,
     previous_hash: str | None,
     dry_run: bool = False,
+    openrouter_client: OpenAI | None = None,
+    use_llm_context: bool = True,
 ) -> dict[str, Any]:
     """Ingest one source file end-to-end. Returns a stats dict.
 
     On dry_run we do stages 1-3 (partition + clean + chunk) but skip
     embedding + Qdrant upsert. Useful for validating chunking quality
     on a laptop without spending API credit.
+
+    When ``use_llm_context`` is True and ``openrouter_client`` is set, we
+    replace the rule-based breadcrumb prefix with an LLM-generated topic
+    sentence built from a summary of the whole document and the chunk
+    body. This is Anthropic's contextual-retrieval recipe and materially
+    improves recall on paraphrased queries. The rule-based breadcrumb is
+    still stored in the payload as ``breadcrumb`` for debugging, and is
+    used as a fallback prefix on any chunk where the LLM call fails.
     """
     elements = partition_with_cache(path, CACHE_DIR, file_hash=file_hash)
     if not elements:
@@ -576,34 +749,75 @@ def ingest_file(
     element_index = _build_element_index(elements)
     seq_headers = build_context_headers_for_chunks(chunks)
 
-    context_headers: list[str] = []
+    # Compute a single document summary once per file; the LLM sees the
+    # same doc-level context for every chunk of this file.
+    doc_summary = build_doc_summary(elements) if use_llm_context else ""
+
+    # Compute the docs-relative posix path once — used both for the
+    # delete filter and by the doc_type classifier.
+    try:
+        rel_path = path.relative_to(DOCS_DIR).as_posix()
+    except ValueError:
+        rel_path = path.as_posix()
+
+    # Classify doc_type from the on-disk path so retrieval-time filters
+    # (admin -> syllabus_outline) work out of the box after ingest. Uses
+    # the same rules as scripts/backfill_doc_type.py — kept in sync via
+    # direct import so we don't drift.
+    from scripts.backfill_doc_type import classify_doc_type
+    doc_type = classify_doc_type(rel_path)
+
+    # Precompute breadcrumbs + bodies so we can drive the LLM step in
+    # parallel across a chunk's siblings.
+    breadcrumbs: list[str] = [
+        seq or build_context_header(chunk, element_index)
+        for chunk, seq in zip(chunks, seq_headers, strict=True)
+    ]
+    bodies: list[str] = [chunk.text or "" for chunk in chunks]
+
+    # Concurrent LLM-context calls: DeepSeek-V3 via OpenRouter is fine
+    # with ~10-way parallelism, and serial calls make a full re-ingest
+    # take hours. We preserve order by mapping (executor.map returns
+    # results in submission order).
+    llm_sentences: list[str] = [""] * len(chunks)
+    if use_llm_context and openrouter_client is not None:
+        with ThreadPoolExecutor(max_workers=LLM_CONTEXT_CONCURRENCY) as ex:
+            llm_sentences = list(ex.map(
+                lambda body: generate_llm_context(body, doc_summary, openrouter_client),
+                bodies,
+            ))
+
+    context_headers: list[str] = []      # what we actually prepended
     prefixed_texts: list[str] = []
     header_hits = 0
-    for chunk, seq_header in zip(chunks, seq_headers, strict=True):
-        header = seq_header or build_context_header(chunk, element_index)
-        body = chunk.text or ""
+    llm_hits = 0
+    for body, breadcrumb, llm_sentence in zip(bodies, breadcrumbs, llm_sentences, strict=True):
+        # Choose the header to prepend: LLM sentence first, breadcrumb
+        # only when LLM is disabled or its call fails.
+        if llm_sentence:
+            header = llm_sentence
+            llm_hits += 1
+        elif breadcrumb:
+            header = breadcrumb
+        else:
+            header = ""
+
         if header:
             header_hits += 1
             prefixed = f"{header}\n{body}"
         else:
             prefixed = body
+
         context_headers.append(header)
         prefixed_texts.append(prefixed)
 
-    logger.debug(
-        "%s: %d/%d chunks got context headers",
-        path.name, header_hits, len(chunks),
+    logger.info(
+        "%s: %d/%d chunks got context headers (LLM=%d, breadcrumb=%d)",
+        path.name, header_hits, len(chunks), llm_hits, header_hits - llm_hits,
     )
 
     vectors = embed_texts(openai_client, prefixed_texts)
     sparse_vectors = [encode_sparse_doc(t) for t in prefixed_texts]
-
-    # Compute the docs-relative posix path the same way chunks_to_points
-    # does, so the delete filter matches the payload we're about to write.
-    try:
-        rel_path = path.relative_to(DOCS_DIR).as_posix()
-    except ValueError:
-        rel_path = path.as_posix()
 
     # Remove any prior version of this file's chunks so we don't leave
     # stale content behind on re-ingest. Also runs on first-time ingest
@@ -613,7 +827,7 @@ def ingest_file(
 
     points = chunks_to_points(
         chunks, path, file_hash, vectors, sparse_vectors,
-        context_headers, prefixed_texts,
+        context_headers, breadcrumbs, prefixed_texts, doc_type,
     )
     for start in range(0, len(points), UPSERT_BATCH_SIZE):
         qdrant.upsert(
@@ -658,6 +872,16 @@ def parse_args() -> argparse.Namespace:
         "--reset",
         action="store_true",
         help="Drop and recreate the Qdrant collection before ingesting.",
+    )
+    p.add_argument(
+        "--no-llm-context",
+        action="store_true",
+        help=(
+            "Skip the LLM-generated contextual header (P2.2). Falls back "
+            "to the rule-based Title breadcrumb only. Cuts ingest cost by "
+            "one OpenRouter call per chunk (~$0.50/full re-ingest at "
+            "DeepSeek-V3 prices)."
+        ),
     )
     p.add_argument(
         "--verbose",
@@ -723,10 +947,20 @@ def main() -> int:
 
     # Set up clients only if we're actually going to hit the network.
     openai_client: OpenAI | None = None
+    openrouter_client: OpenAI | None = None
     qdrant: QdrantClient | None = None
+    use_llm_context = not args.no_llm_context
     if not args.dry_run:
         openai_client = build_openai_client()
         qdrant = build_qdrant_client()
+        # Build the OpenRouter client only when we actually need it —
+        # skips the OPENROUTER_API_KEY check when the user has opted out
+        # of LLM-generated headers.
+        if use_llm_context:
+            openrouter_client = build_openrouter_client()
+            logger.info("LLM context headers ENABLED (model=%s)", OPENROUTER_MODEL)
+        else:
+            logger.info("LLM context headers DISABLED (--no-llm-context)")
         if args.reset:
             existing = {c.name for c in qdrant.get_collections().collections}
             if COLLECTION_NAME in existing:
@@ -744,6 +978,8 @@ def main() -> int:
                 file_hash=file_hash,
                 previous_hash=prev_hash,
                 dry_run=args.dry_run,
+                openrouter_client=openrouter_client,
+                use_llm_context=use_llm_context,
             )
             totals["files"] += 1
             totals["elements"] += stats["elements"]
