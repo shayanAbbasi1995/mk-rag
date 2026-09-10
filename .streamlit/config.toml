@@ -1,2 +1,22 @@
+# Streamlit config committed to git so both local dev and Streamlit
+# Community Cloud pick up the same behaviour. Only user-facing settings
+# belong here — Streamlit Cloud manages server networking and TLS.
+
 [browser]
+# Skip the "help us improve Streamlit" telemetry prompt on first launch
+# so students aren't greeted by an unrelated data-sharing question.
 gatherUsageStats = false
+
+[client]
+# Show the full traceback of unexpected errors in the browser. Students
+# occasionally hit rate limits or key-configuration issues; a clear
+# error message is more useful than a red banner with no detail.
+showErrorDetails = true
+
+[theme]
+# Simple light theme with an academic blue accent. Overridable per-user
+# via Streamlit's "Settings -> Theme" menu.
+primaryColor = "#1f4e79"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f5f7fa"
+textColor = "#262730"

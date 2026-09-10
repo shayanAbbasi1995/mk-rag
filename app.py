@@ -182,15 +182,24 @@ _SECRETS_PATHS = [
     pathlib.Path.home() / ".streamlit" / "secrets.toml",
     pathlib.Path(__file__).parent / ".streamlit" / "secrets.toml",
 ]
-_HAS_SECRETS_FILE = any(p.exists() for p in _SECRETS_PATHS)
+# We treat Streamlit Cloud as "has secrets" too. Cloud mounts dashboard
+# secrets at ~/.streamlit/secrets.toml (so the file-existence check
+# usually succeeds), but the STREAMLIT_RUNTIME_ENV / HOSTNAME env vars
+# it sets are our fallback signal so a future Cloud deploy that skips
+# the on-disk mount still routes through st.secrets.
+_HAS_SECRETS_FILE = any(p.exists() for p in _SECRETS_PATHS) or (
+    "STREAMLIT_RUNTIME_ENV" in os.environ
+    or os.environ.get("HOSTNAME", "").startswith(("streamlit", "appuser"))
+)
 
 
 def _get_secret(key: str) -> str | None:
     """Read a secret from Streamlit Secrets first, then the environment.
 
-    Only touches st.secrets if a secrets.toml actually exists — otherwise
-    Streamlit prints a noisy warning on every rerun even though we fall back
-    to env vars successfully.
+    Only touches st.secrets when there's evidence we're on Streamlit Cloud
+    (or a secrets.toml is present locally) — otherwise pure local dev via
+    `.env` triggers a noisy Streamlit warning on every rerun even though
+    the env-var fallback works.
     """
     if _HAS_SECRETS_FILE:
         try:
@@ -216,8 +225,12 @@ def _require(name: str, value: Any) -> None:
     """
     if not value:
         st.error(
-            f"Missing required secret `{name}`. Set it in the repo-root `.env` "
-            "file, or in `.streamlit/secrets.toml` when deploying."
+            f"Missing required secret `{name}`.\n\n"
+            "- **Local dev**: add it to the repo-root `.env` file "
+            "(see `.streamlit/secrets.toml.example` for the full key list).\n"
+            "- **Streamlit Community Cloud**: add it under "
+            "**App settings -> Secrets** in the dashboard "
+            "(https://share.streamlit.io)."
         )
         st.stop()
 

@@ -46,6 +46,9 @@ docs/.Rhistory
 _streamlit.log
 _streamlit.log.err
 
+# Ingestion run logs
+ingest_output.log
+
 # OS
 .DS_Store
 Thumbs.db

@@ -2,7 +2,8 @@
 
 The entire module is skipped when `unstructured` is not installed — which is
 the case in CI where we install only lightweight test dependencies.
-Install the full `requirements.txt` to run these locally.
+Install `requirements-ingest.txt` (in addition to `requirements.txt`) to
+run these locally.
 """
 import pytest
 

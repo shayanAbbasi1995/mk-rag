@@ -57,7 +57,13 @@ cd my-course-rag
 python -m venv .venv
 .venv\Scripts\activate        # Windows
 # source .venv/bin/activate   # macOS/Linux
+
+# Runtime deps only (what the deployed app needs):
 pip install -r requirements.txt
+
+# Add ingestion deps if you plan to run scripts/ingest.py locally
+# (partitioners for PDF, PPTX, DOCX, HTML, Markdown, Quarto):
+pip install -r requirements-ingest.txt
 ```
 
 ### 3. Configure your course
@@ -120,11 +126,53 @@ Opens at `http://localhost:8501`.
 
 ## Deploying to Streamlit Cloud
 
-1. Push your fork to GitHub (docs are gitignored — no course materials are exposed)
-2. Connect the repo at [share.streamlit.io](https://share.streamlit.io)
-3. Add your secrets under **App settings → Secrets** (same key names as `.env`)
+The deployed app connects to your Qdrant Cloud cluster over HTTPS, so it never needs your local `docs/` files or the offline ingestion toolchain. Follow these steps once you have already ingested your course materials into Qdrant locally.
 
-The deployed app reads from Qdrant at runtime — `docs/` is never needed on the server.
+### 1. Push your repo to GitHub
+
+Course materials are gitignored (`docs/` and `data/`) so nothing sensitive gets exposed even if you push to a public repo. Verify with:
+
+```powershell
+git status --ignored
+```
+
+### 2. Create the Streamlit app
+
+1. Sign in at [share.streamlit.io](https://share.streamlit.io) with the same GitHub account.
+2. Click **"New app"** and pick your repo + branch (usually `main`).
+3. Set the entry point to `app.py`.
+4. Under **Advanced settings → Python version**, select **3.11** (the repo's `runtime.txt` also pins this, so either is fine).
+
+### 3. Add secrets
+
+Under **App settings → Secrets**, paste the following TOML (fill in your real values — the same ones from your local `.env`):
+
+```toml
+COURSE_NAME = "My Course Name: Ask a question"
+
+OPENROUTER_API_KEY = "sk-or-v1-..."
+OPEN_AI_EMBEDDINGS_API_KEY = "sk-..."
+
+QDRANT_URL = "https://<cluster-id>.<region>.aws.cloud.qdrant.io:6333"
+QDRANT_API_KEY = "..."
+```
+
+`.streamlit/secrets.toml.example` in the repo mirrors this schema.
+
+### 4. Deploy and share
+
+Streamlit Cloud installs `requirements.txt` (runtime only — the heavier ingestion deps in `requirements-ingest.txt` are NOT installed on the server, keeping cold start under 2 minutes) and starts `app.py`. Once the build finishes, share the `https://<your-app>.streamlit.app` URL with students.
+
+### Re-ingesting new course materials
+
+Ingestion still runs locally on your machine, never on Streamlit Cloud:
+
+```powershell
+pip install -r requirements.txt -r requirements-ingest.txt   # once
+.venv\Scripts\python.exe -m scripts.ingest
+```
+
+Because the deployed app queries Qdrant directly, new chunks show up in the app as soon as your local ingest completes — no redeploy required.
 
 ---
 
@@ -132,11 +180,13 @@ The deployed app reads from Qdrant at runtime — `docs/` is never needed on the
 
 ```
 course-rag/
-├── app.py                        # Streamlit chat UI
-├── requirements.txt              # Pinned dependencies
+├── app.py                        # Streamlit chat UI (deployed target)
+├── requirements.txt              # Runtime deps — installed by Streamlit Cloud
+├── requirements-ingest.txt       # Extra deps for local ingestion only
+├── runtime.txt                   # Pins Python version for Streamlit Cloud
 ├── .env                          # Your secrets — gitignored, never commit
 ├── .streamlit/
-│   ├── config.toml               # Disables Streamlit usage-stats prompt
+│   ├── config.toml               # Theme + telemetry-off (committed)
 │   └── secrets.toml.example      # Key template for Streamlit Cloud
 ├── docs/                         # Your course materials — gitignored
 │   └── README.md                 # Instructions for what to put here
