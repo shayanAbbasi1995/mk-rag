@@ -26,14 +26,10 @@ sentence-transformers==4.1.0
 # Vector store client
 qdrant-client==1.12.1
 
-# Numerical dep pin.
+# Numerical dep pin. sentence-transformers pulls numpy transitively, but
+# pinning here avoids a resolver picking numpy 2.x on a fresh install and
+# breaking the torch/transformers wheels.
 numpy==1.26.4
-
-# Pillow pin: sentence-transformers>=4.x requires pillow>=10. Pillow 10.x
-# has no Python 3.13+ wheels and fails to compile from source on Streamlit
-# Cloud. Pillow 11.x ships pre-built wheels for Python 3.13/3.14 so we
-# pin here to avoid a source-build failure if the resolver picks 10.x.
-pillow>=11.0.0
 
 # Protobuf pin: qdrant-client 1.12.x needs 5.x; the default resolver
 # sometimes picks 3.x and produces a runtime import error.
