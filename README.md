@@ -108,7 +108,7 @@ docs/
 .venv\Scripts\python.exe -m scripts.ingest
 ```
 
-This partitions, chunks, embeds, and uploads everything to your Qdrant collection. Only new or changed files are re-processed on subsequent runs. To force a full re-ingest:
+This partitions, chunks, embeds, and uploads everything to your Qdrant collection. Only new or changed files are re-processed on subsequent runs, and files you delete from `docs/` have their chunks removed from Qdrant automatically (use `--no-prune` to skip this; a safety guard refuses to prune if more than 25% of files look removed at once). To force a full re-ingest:
 
 ```powershell
 .venv\Scripts\python.exe -m scripts.ingest --reset

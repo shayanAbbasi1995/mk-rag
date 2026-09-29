@@ -11,6 +11,8 @@ Pipeline (mirrors `Preprocessing Unstructured Data for LLM Applications.pdf`):
 
 Runs incrementally via `index_tracker.json`: only files whose MD5 hash has
 changed since the last run are re-parsed / re-embedded / re-upserted.
+Files that were ingested before but no longer exist under docs/ are pruned:
+their Qdrant points are deleted and their tracker entry dropped.
 
 Usage:
     python -m scripts.ingest                 # ingest everything new/changed
@@ -18,6 +20,7 @@ Usage:
     python -m scripts.ingest --files a.pdf   # force-ingest one or more files
     python -m scripts.ingest --dry-run       # partition + chunk only; no API calls
     python -m scripts.ingest --reset         # drop the Qdrant collection first
+    python -m scripts.ingest --no-prune      # skip deleting points of removed files
 """
 
 from __future__ import annotations
@@ -31,7 +34,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 from uuid import uuid4
 
 from dotenv import load_dotenv
@@ -149,6 +152,42 @@ def load_tracker() -> dict[str, Any]:
 def save_tracker(tracker: dict[str, Any]) -> None:
     tracker["last_updated"] = datetime.now(timezone.utc).isoformat()
     TRACKER_FILE.write_text(json.dumps(tracker, indent=2), encoding="utf-8")
+
+
+# Refuse to prune when more than this fraction of tracked files looks
+# "removed" in one run — that pattern means docs/ is missing, unsynced
+# (OneDrive), or the repo moved, not that the instructor deleted half the
+# course. Override with --force-prune once you've confirmed it's intended.
+PRUNE_MAX_FRACTION = 0.25
+
+
+def find_removed_files(
+    tracked: dict[str, str],
+    discovered: Iterable[Path],
+    docs_dir: Path,
+) -> tuple[list[tuple[str, str]], list[str]]:
+    """Return tracker entries whose file is no longer in docs/.
+
+    Returns (removed, unresolvable):
+      removed       — (tracker_key, source_path) pairs, where source_path is
+                      the docs/-relative POSIX path stored on Qdrant points.
+      unresolvable  — tracker keys outside `docs_dir` (e.g. a tracker copied
+                      from another checkout). We never prune these because
+                      we can't map them to a source_path safely.
+    """
+    discovered_keys = {str(p) for p in discovered}
+    removed: list[tuple[str, str]] = []
+    unresolvable: list[str] = []
+    for key in tracked:
+        if key in discovered_keys:
+            continue
+        try:
+            rel = Path(key).relative_to(docs_dir).as_posix()
+        except ValueError:
+            unresolvable.append(key)
+            continue
+        removed.append((key, rel))
+    return removed, unresolvable
 
 
 # -----------------------------------------------------------------------------
@@ -884,6 +923,19 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     p.add_argument(
+        "--no-prune",
+        action="store_true",
+        help="Don't delete Qdrant points for files removed from docs/.",
+    )
+    p.add_argument(
+        "--force-prune",
+        action="store_true",
+        help=(
+            f"Prune even if more than {PRUNE_MAX_FRACTION:.0%} of tracked "
+            "files appear removed (safety guard against a missing docs/)."
+        ),
+    )
+    p.add_argument(
         "--verbose",
         action="store_true",
         help="DEBUG-level logging.",
@@ -934,14 +986,40 @@ def main() -> int:
     if args.limit:
         to_process = to_process[: args.limit]
 
-    if not to_process:
-        logger.info("Nothing new to ingest.")
+    # Removal detection: tracked files that are no longer discovered under
+    # docs/. Skipped for --files runs, which only see the files named.
+    to_prune: list[tuple[str, str]] = []
+    if not args.files and not args.no_prune:
+        to_prune, unresolvable = find_removed_files(
+            tracker["files"], candidates, DOCS_DIR
+        )
+        for key in unresolvable:
+            logger.warning("Tracker entry outside docs/, not pruning: %s", key)
+        n_tracked = len(tracker["files"])
+        if (
+            to_prune
+            and not args.force_prune
+            and len(to_prune) > PRUNE_MAX_FRACTION * n_tracked
+        ):
+            logger.error(
+                "%d of %d tracked files look removed; refusing to prune. "
+                "Check that docs/ is complete, then re-run with "
+                "--force-prune (or --no-prune to skip).",
+                len(to_prune),
+                n_tracked,
+            )
+            return 1
+
+    if not to_process and not to_prune:
+        logger.info("Nothing new to ingest and nothing removed.")
         return 0
 
     logger.info(
-        "%d file(s) to ingest (of %d discovered). Cache dir: %s",
+        "%d file(s) to ingest (of %d discovered), %d removed file(s) to prune. "
+        "Cache dir: %s",
         len(to_process),
         len(candidates),
+        len(to_prune),
         CACHE_DIR,
     )
 
@@ -951,22 +1029,36 @@ def main() -> int:
     qdrant: QdrantClient | None = None
     use_llm_context = not args.no_llm_context
     if not args.dry_run:
-        openai_client = build_openai_client()
         qdrant = build_qdrant_client()
-        # Build the OpenRouter client only when we actually need it —
-        # skips the OPENROUTER_API_KEY check when the user has opted out
-        # of LLM-generated headers.
-        if use_llm_context:
-            openrouter_client = build_openrouter_client()
-            logger.info("LLM context headers ENABLED (model=%s)", OPENROUTER_MODEL)
-        else:
-            logger.info("LLM context headers DISABLED (--no-llm-context)")
+        # Embedding / LLM clients are only needed when there is something
+        # to ingest — a prune-only run needs Qdrant alone.
+        if to_process:
+            openai_client = build_openai_client()
+            # Build the OpenRouter client only when we actually need it —
+            # skips the OPENROUTER_API_KEY check when the user has opted
+            # out of LLM-generated headers.
+            if use_llm_context:
+                openrouter_client = build_openrouter_client()
+                logger.info("LLM context headers ENABLED (model=%s)", OPENROUTER_MODEL)
+            else:
+                logger.info("LLM context headers DISABLED (--no-llm-context)")
         if args.reset:
             existing = {c.name for c in qdrant.get_collections().collections}
             if COLLECTION_NAME in existing:
                 qdrant.delete_collection(COLLECTION_NAME)
                 logger.info("Dropped collection %r", COLLECTION_NAME)
         ensure_collection(qdrant, COLLECTION_NAME, EMBEDDING_DIM)
+
+    # Prune removed files before ingesting so a file that was moved (old
+    # path removed, new path added) never has both copies live at once.
+    for key, rel_path in to_prune:
+        if args.dry_run:
+            logger.info("  [DRY-RUN] would prune %s", rel_path)
+            continue
+        delete_stale_points(qdrant, Path(rel_path).name, rel_path, None)  # type: ignore[arg-type]
+        tracker["files"].pop(key, None)
+        tracker.get("failures", {}).pop(key, None)
+        logger.info("  pruned %s", rel_path)
 
     totals = {"files": 0, "elements": 0, "chunks": 0, "vectors": 0, "failed": 0}
     for path, file_hash, prev_hash in tqdm(to_process, unit="file"):
@@ -1015,12 +1107,13 @@ def main() -> int:
         save_tracker(tracker)
 
     logger.info(
-        "Done. files=%d  elements=%d  chunks=%d  vectors=%d  failed=%d",
+        "Done. files=%d  elements=%d  chunks=%d  vectors=%d  failed=%d  pruned=%d",
         totals["files"] - totals["failed"],
         totals["elements"],
         totals["chunks"],
         totals["vectors"],
         totals["failed"],
+        0 if args.dry_run else len(to_prune),
     )
     return 0 if totals["failed"] == 0 else 2
 
