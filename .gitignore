@@ -52,3 +52,9 @@ ingest_output.log
 # OS
 .DS_Store
 Thumbs.db
+
+# Article drafts — local only, not for GitHub
+article-*.md
+
+# Streamlit Cloud log downloads
+logs-*.txt
