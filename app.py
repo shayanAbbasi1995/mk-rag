@@ -101,6 +101,18 @@ SESSION_QUERY_RE = re.compile(
 # small so semantic hits still get most of the RETRIEVER_K budget.
 SESSION_PIN_TOP_N: int = 3
 
+# Companion-deck intent. Each session folder can hold, besides the main
+# session-NN deck, an R Lab deck (session-NN-RLab) and/or a solutions deck
+# (solutions-NN). When the question signals one of these, session pinning
+# draws from that deck instead of the main one — otherwise the main deck's
+# "we'll now do the R lab" slides win the cosine race and take every pinned
+# slot (see scripts/eval_session_pinning.py).
+LAB_INTENT_RE = re.compile(r"\b(?:r\s*-?\s*labs?|labs?|r\s+code|in\s+r)\b", re.IGNORECASE)
+SOLUTIONS_INTENT_RE = re.compile(
+    r"\b(?:solutions?|answers?|answer\s+key|exercises?|worked\s+examples?)\b",
+    re.IGNORECASE,
+)
+
 # Term-pinning: jargon terms whose dense embeddings get buried when the
 # query also contains a competing high-frequency term. Each entry is
 # (detection_pattern, probe_query, pin_top_n). When the query matches the
@@ -297,28 +309,48 @@ def _detect_session_number(query: str) -> int | None:
     return None
 
 
-def _session_source_filenames(session_number: int) -> list[str]:
-    """Return the four `source_file` payload values a given session can
-    have been indexed under: the primary `.qmd` and its rendered `.html`,
-    plus the corresponding `-extended` variants where present. Zero-pads
-    to two digits to match the on-disk filenames (`session-01`, not
-    `session-1`)."""
-    stem = f"session-{session_number:02d}"
-    return [
-        f"{stem}.qmd",
-        f"{stem}.html",
-        f"{stem}-extended.qmd",
-        f"{stem}-extended.html",
-    ]
+def _session_source_filenames(session_number: int, query: str = "") -> list[list[str]]:
+    """Return the `source_file` payload values to pin from, as ordered tiers.
+
+    A session can be indexed under its main deck (`session-NN`, plus the
+    `-extended` variant where present), an R Lab deck (`session-NN-RLab`)
+    and a solutions deck (`solutions-NN`), each as `.qmd` and rendered
+    `.html`. Zero-pads to two digits to match the on-disk filenames
+    (`session-01`, not `session-1`).
+
+    If `query` signals lab or solutions intent, the first tier is just
+    those companion decks; the last tier is always every file of the
+    session, so a session without that companion deck still gets pinned.
+    Callers use the first tier that has any points.
+    """
+    nn = f"{session_number:02d}"
+
+    def _both(stems: list[str]) -> list[str]:
+        return [f"{s}.{ext}" for s in stems for ext in ("qmd", "html")]
+
+    main = _both([f"session-{nn}", f"session-{nn}-extended"])
+    lab = _both([f"session-{nn}-RLab"])
+    solutions = _both([f"solutions-{nn}"])
+
+    preferred: list[str] = []
+    if LAB_INTENT_RE.search(query):
+        preferred += lab
+    if SOLUTIONS_INTENT_RE.search(query):
+        preferred += solutions
+    everything = main + lab + solutions
+    return [preferred, everything] if preferred else [everything]
 
 
 def _fetch_session_chunks(
     session_number: int,
     query_vector: list[float],
     top_n: int,
+    query: str = "",
 ) -> list[Document]:
     """Pull `top_n` chunks from the given session's source files, ranked
-    by dense cosine against `query_vector`.
+    by dense cosine against `query_vector`. `query` routes lab/solutions
+    questions to the matching companion deck (see
+    `_session_source_filenames`).
 
     Two-step approach because Qdrant's `source_file` payload field is not
     indexed for text/substring lookup (only exact `MatchAny` works), and
@@ -333,29 +365,33 @@ def _fetch_session_chunks(
     keeps this dependency-free and behaves identically to the diagnostic
     that established this fix works.
     """
-    filenames = _session_source_filenames(session_number)
     client = get_qdrant_client()
 
+    # Use the first filename tier that has any indexed points: the
+    # companion deck the question asked for, else the whole session.
     session_points: list[Any] = []
-    next_offset = None
-    while True:
-        page, next_offset = client.scroll(
-            collection_name=QDRANT_COLLECTION,
-            scroll_filter=Filter(
-                must=[
-                    FieldCondition(
-                        key="source_file",
-                        match=MatchAny(any=filenames),
-                    )
-                ]
-            ),
-            with_payload=True,
-            with_vectors=[DENSE_VECTOR_NAME],
-            limit=256,
-            offset=next_offset,
-        )
-        session_points.extend(page)
-        if next_offset is None:
+    for filenames in _session_source_filenames(session_number, query):
+        next_offset = None
+        while True:
+            page, next_offset = client.scroll(
+                collection_name=QDRANT_COLLECTION,
+                scroll_filter=Filter(
+                    must=[
+                        FieldCondition(
+                            key="source_file",
+                            match=MatchAny(any=filenames),
+                        )
+                    ]
+                ),
+                with_payload=True,
+                with_vectors=[DENSE_VECTOR_NAME],
+                limit=256,
+                offset=next_offset,
+            )
+            session_points.extend(page)
+            if next_offset is None:
+                break
+        if session_points:
             break
 
     if not session_points:
@@ -663,7 +699,7 @@ def search_docs(
     pinned_docs: list[Document] = []
     if session_n is not None:
         pinned_docs = _fetch_session_chunks(
-            session_n, query_vector, top_n=SESSION_PIN_TOP_N
+            session_n, query_vector, top_n=SESSION_PIN_TOP_N, query=query
         )
 
     # Jargon term pinning. When the query explicitly names a concept that
